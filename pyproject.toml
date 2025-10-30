@@ -4,4 +4,24 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "pydantic",
+    "pydantic-settings",
+    "httpx",
+    "python-jose[cryptography]",
+    "SQLAlchemy",
+    "cryptography",
+    "psycopg2-binary", # For PostgreSQL
+    "pydantic[email]",
+    "click",
+    "h11",
+    "starlette",
+    "annotated-doc",
+    "pydantic-core",
+    "typing-inspection",
+    "annotated-types",
+    "python-dotenv",
+    "httpcore",
+]
