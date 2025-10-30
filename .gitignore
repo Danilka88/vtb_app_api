@@ -1,0 +1,5 @@
+# Ignore the base directory
+/base/
+
+# Ignore the GEMINI.md file
+/GEMINI.md
