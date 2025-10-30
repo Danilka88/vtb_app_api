@@ -1,10 +1,5 @@
 # Ignore specific files in the base directory
-/base/1_Virtual Bank API - Swagger UI.pdf
-/base/2_Virtual Bank API - Swagger UI.pdf
-/base/PLAN.txt
-/base/TASK.txt
-/base/ARCHITECTURE.md
-/base/IMPLEMENTATION_PLAN.md
+/base/
 
 # Ignore the GEMINI.md file
 /GEMINI.md
