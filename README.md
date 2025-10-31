@@ -42,23 +42,66 @@ uvicorn main:app --reload
 
 ## Доступные API эндпоинты
 
-На данный момент реализованы следующие эндпоинты:
-
-- **`GET /`**
-  - **Описание:** Корневой эндпоинт для проверки, что сервер запущен.
-  - **Ответ:**
-    ```json
-    {
-      "message": "Hello from vtb-app-api!"
-    }
-    ```
+### Аутентификация и авторизация
 
 - **`POST /api/v1/auth/init-bank-tokens`**
-  - **Описание:** Инициирует процесс получения и сохранения банковских токенов для всех поддерживаемых банков. На данный момент реализовано только для VBank.
+  - **Описание:** Инициирует процесс получения и сохранения банковских токенов для всех поддерживаемых банков (`vbank`, `abank`, `sbank`).
   - **Ответ:**
     ```json
     {
       "message": "Bank tokens initialized successfully."
+    }
+    ```
+
+- **`POST /api/v1/auth/create-consent`**
+  - **Описание:** Создает согласие для доступа к данным пользователя.
+  - **Тело запроса:**
+    ```json
+    {
+      "bank_name": "vbank",
+      "user_id": "team042-1"
+    }
+    ```
+  - **Ответ:**
+    ```json
+    {
+      "message": "Consent created successfully.",
+      "consent_id": "consent-xxxxxxxxxxxx"
+    }
+    ```
+
+### Получение данных
+
+- **`POST /api/v1/data/accounts`**
+  - **Описание:** Получает список счетов пользователя.
+  - **Тело запроса:**
+    ```json
+    {
+      "bank_name": "vbank",
+      "consent_id": "consent-xxxxxxxxxxxx",
+      "user_id": "team042-1"
+    }
+    ```
+
+- **`POST /api/v1/data/accounts/{account_id}/balances`**
+  - **Описание:** Получает балансы для конкретного счета.
+  - **Тело запроса:**
+    ```json
+    {
+      "bank_name": "vbank",
+      "consent_id": "consent-xxxxxxxxxxxx",
+      "user_id": "team042-1"
+    }
+    ```
+
+- **`POST /api/v1/data/accounts/{account_id}/transactions`**
+  - **Описание:** Получает транзакции для конкретного счета.
+  - **Тело запроса:**
+    ```json
+    {
+      "bank_name": "vbank",
+      "consent_id": "consent-xxxxxxxxxxxx",
+      "user_id": "team042-1"
     }
     ```
 

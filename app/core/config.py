@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     VBANK_API_URL: str = "https://vbank.open.bankingapi.ru"
     ABANK_API_URL: str = "https://abank.open.bankingapi.ru"
     SBANK_API_URL: str = "https://sbank.open.bankingapi.ru"
+    ABANK_API_URL: str = "https://abank.open.bankingapi.ru"
+    SBANK_API_URL: str = "https://sbank.open.bankingapi.ru"
 
     class Config:
         env_file = ".env"

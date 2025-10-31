@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 
 from app.db.database import Base, engine
-from app.api.v1.endpoints import auth
+from app.api.v1 import api_router
 
 Base.metadata.create_all(bind=engine)
 
@@ -12,7 +12,7 @@ app = FastAPI()
 async def startup_event():
     Base.metadata.create_all(bind=engine)
 
-app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/")

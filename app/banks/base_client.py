@@ -10,3 +10,19 @@ class BaseBankClient(ABC):
     @abstractmethod
     async def get_bank_token(self) -> dict:
         pass
+
+    @abstractmethod
+    async def create_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
+        pass
+
+    @abstractmethod
+    async def get_accounts(self, access_token: str, consent_id: str, user_id: str) -> list[dict]:
+        pass
+
+    @abstractmethod
+    async def get_account_balances(self, access_token: str, consent_id: str, user_id: str, account_id: str) -> dict:
+        pass
+
+    @abstractmethod
+    async def get_account_transactions(self, access_token: str, consent_id: str, user_id: str, account_id: str) -> list[dict]:
+        pass
