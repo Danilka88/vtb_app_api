@@ -53,11 +53,16 @@ uvicorn main:app --reload
     }
     ```
 
-- **`POST /api/v1/auth/init-tokens`**
+- **`POST /api/v1/auth/init-bank-tokens`**
   - **Описание:** Инициирует процесс получения и сохранения банковских токенов для всех поддерживаемых банков. На данный момент реализовано только для VBank.
   - **Ответ:**
     ```json
     {
-      "message": "Tokens initialized successfully."
+      "message": "Bank tokens initialized successfully."
     }
     ```
+
+## Важно: Учетные данные
+
+- `CLIENT_ID`: `team042` (код вашей команды).
+- `CLIENT_SECRET`: Секретный ключ, полученный от организаторов хакатона (например, `QlXkpyJlRATlGD25xYp7azqIA5Cx4qcc`).

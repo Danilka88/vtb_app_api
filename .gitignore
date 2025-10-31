@@ -6,3 +6,6 @@
 
 # Ignore environment variables file
 .env
+
+# Ignore cryptographic materials
+certs/

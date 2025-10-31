@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -18,10 +18,10 @@ def get_db():
         db.close()
 
 
-@router.post("/init-tokens")
-async def init_tokens(db: Session = Depends(get_db)):
+@router.post("/init-bank-tokens")
+async def init_bank_tokens(db: Session = Depends(get_db)):
     """
-    Initializes and saves bank tokens for all supported banks.
+    Initializes and saves bank tokens for all supported banks using the simple bank-token flow.
     """
     # VBank
     vbank_client = VBankClient(
@@ -29,16 +29,19 @@ async def init_tokens(db: Session = Depends(get_db)):
         client_secret=settings.CLIENT_SECRET,
         api_url=settings.VBANK_API_URL
     )
-    vbank_token_data = await vbank_client.get_bank_token()
-    crud.save_token(
-        db=db,
-        bank_name="vbank",
-        token=vbank_token_data["access_token"],
-        expires_in=vbank_token_data["expires_in"]
-    )
+    try:
+        vbank_token_data = await vbank_client.get_bank_token()
+        crud.save_token(
+            db=db,
+            bank_name="vbank",
+            token=vbank_token_data["access_token"],
+            expires_in=vbank_token_data["expires_in"]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get token for VBank: {e}")
 
     # ABank (to be implemented)
 
     # SBank (to be implemented)
 
-    return {"message": "Tokens initialized successfully."}
+    return {"message": "Bank tokens initialized successfully."}
