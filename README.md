@@ -58,7 +58,7 @@ uvicorn main:app --reload
   - **Тело запроса:**
     ```json
     {
-      "bank_name": "vbank",
+      "bank_name": "<vbank|abank|sbank>",
       "user_id": "team042-1"
     }
     ```
@@ -73,22 +73,18 @@ uvicorn main:app --reload
 ### Получение данных
 
 - **`POST /api/v1/data/accounts`**
-  - **Описание:** Получает список счетов пользователя.
-  - **Тело запроса:**
-    ```json
     {
-      "bank_name": "vbank",
+      "bank_name": "<vbank|abank|sbank>",
       "consent_id": "consent-xxxxxxxxxxxx",
       "user_id": "team042-1"
     }
-    ```
 
 - **`POST /api/v1/data/accounts/{account_id}/balances`**
   - **Описание:** Получает балансы для конкретного счета.
   - **Тело запроса:**
     ```json
     {
-      "bank_name": "vbank",
+      "bank_name": "<vbank|abank|sbank>",
       "consent_id": "consent-xxxxxxxxxxxx",
       "user_id": "team042-1"
     }
@@ -99,7 +95,7 @@ uvicorn main:app --reload
   - **Тело запроса:**
     ```json
     {
-      "bank_name": "vbank",
+      "bank_name": "<vbank|abank|sbank>",
       "consent_id": "consent-xxxxxxxxxxxx",
       "user_id": "team042-1"
     }

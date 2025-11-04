@@ -26,3 +26,7 @@ class BaseBankClient(ABC):
     @abstractmethod
     async def get_account_transactions(self, access_token: str, consent_id: str, user_id: str, account_id: str) -> list[dict]:
         pass
+
+    @abstractmethod
+    async def get_account_details(self, access_token: str, consent_id: str, user_id: str, account_id: str) -> dict:
+        pass
