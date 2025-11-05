@@ -51,12 +51,24 @@ uvicorn main:app --reload
 Для запуска всех тестов проекта выполните:
 
 ```bash
-PYTHONPATH=/Users/danil_ka88/Desktop/vrb_api/vtb_app_api pytest -q /Users/danil_ka88/Desktop/vrb_api/vtb_app_api/tests/test_vbank_payments_api.py
+PYTHONPATH=$(pwd) pytest -q tests/
 ```
-Или, если вы хотите запустить все тесты в директории `tests`:
-```bash
-PYTHONPATH=/Users/danil_ka88/Desktop/vrb_api/vtb_app_api pytest -q tests/
-```
+
+Для запуска тестов для конкретного банка:
+
+- **VBank:**
+  ```bash
+  PYTHONPATH=$(pwd) pytest -q tests/test_vbank_payments_api.py
+  ```
+- **ABank:**
+  ```bash
+  PYTHONPATH=$(pwd) pytest -q tests/test_abank_payments_api.py
+  ```
+- **SBank:**
+  ```bash
+  PYTHONPATH=$(pwd) pytest -q tests/test_sbank_payments_api.py
+  ```
+
 Флаг `-q` делает вывод более кратким.
 
 ### Генерация ключа шифрования

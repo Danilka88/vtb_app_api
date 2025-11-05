@@ -55,7 +55,9 @@ class SBankClient(BaseBankClient):
             }
         )
         response.raise_for_status()
-        return response.json()["consent_id"]
+        consent_data = response.json()
+        consent_id = consent_data.get("consent_id") or consent_data.get("data", {}).get("consent_id") or consent_data.get("details", {}).get("data", {}).get("consentId")
+        return consent_id
 
     @property
     def accounts(self) -> SBankAccountsService:
@@ -74,13 +76,28 @@ class SBankClient(BaseBankClient):
     async def get_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
         """
         Получает информацию о согласии по его ID из SBank.
-        На данный момент не реализовано.
         """
-        raise NotImplementedError("Метод get_consent не реализован для SBank.")
+        response = await self._async_client.get(
+            f"{self.api_url}/account-consents/{consent_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID,
+            }
+        )
+        response.raise_for_status()
+        return response.json()
 
     async def revoke_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
         """
         Отзывает согласие по его ID из SBank.
-        На данный момент не реализовано.
         """
-        raise NotImplementedError("Метод revoke_consent не реализован для SBank.")
+        response = await self._async_client.delete(
+            f"{self.api_url}/account-consents/{consent_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID,
+            }
+        )
+        response.raise_for_status()
+        # SBank возвращает 204 No Content, но для единообразия с VBank, возвращаем статус и сообщение.
+        return {"status": "success", "message": "Consent revoked successfully (no content)"}
