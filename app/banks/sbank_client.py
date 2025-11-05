@@ -1,5 +1,5 @@
 import httpx
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.banks.base_client import BaseBankClient
 from app.core.config import settings
@@ -34,7 +34,7 @@ class SBankClient(BaseBankClient):
         """
         Создает согласие на доступ к данным счета для SBank.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expiration_date = (now + timedelta(days=365)).isoformat(timespec='seconds') + 'Z'
         transaction_from_date = (now - timedelta(days=365)).isoformat(timespec='seconds') + 'Z'
         transaction_to_date = now.isoformat(timespec='seconds') + 'Z'
@@ -57,6 +57,8 @@ class SBankClient(BaseBankClient):
         response.raise_for_status()
         consent_data = response.json()
         consent_id = consent_data.get("consent_id") or consent_data.get("data", {}).get("consent_id") or consent_data.get("details", {}).get("data", {}).get("consentId")
+        if not consent_id:
+            raise ValueError(f"Не удалось получить consent_id из ответа SBank API: {consent_data}")
         return consent_id
 
     @property
