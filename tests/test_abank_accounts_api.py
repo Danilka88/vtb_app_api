@@ -24,6 +24,37 @@ def init_bank_tokens():
     print("Банк-токены успешно инициализированы.")
 
 
+@pytest.fixture(scope="module")
+def create_consent_fixture():
+    """
+    Фикстура для создания согласия на доступ к счетам для ABank.
+    """
+    global TEST_CONSENT_ID
+    print("\n--- Создание согласия на доступ к счетам для ABank (фикстура) ---")
+    consent_request = {
+        "bank_name": "abank",
+        "user_id": USER_ID,
+        "permissions": [
+            "ReadAccountsDetail",
+            "ReadBalances"
+        ]
+    }
+    response_create = client.post("/api/v1/auth/create-consent", json=consent_request)
+    assert response_create.status_code == 200, f"Ошибка при создании согласия: {response_create.text}"
+    TEST_CONSENT_ID = response_create.json().get("consent_id")
+    assert TEST_CONSENT_ID, "Consent ID не найден в ответе"
+    print(f"Согласие успешно создано. Consent ID: {TEST_CONSENT_ID}")
+    yield
+    # Отзыв согласия после выполнения всех тестов, если оно было создано.
+    if TEST_CONSENT_ID:
+        print(f"\n--- Отзыв согласия {TEST_CONSENT_ID} для ABank (фикстура) ---")
+        response_revoke = client.delete(f"/api/v1/auth/consents/{TEST_CONSENT_ID}?bank_name=abank&user_id={USER_ID}")
+        print(f"Статус ответа (отзыв): {response_revoke.status_code}")
+        print(f"Тело ответа (отзыв): {response_revoke.json()}")
+        assert response_revoke.status_code == 200, f"Ошибка при отзыве согласия: {response_revoke.text}"
+        print(f"Согласие {TEST_CONSENT_ID} успешно отозвано.")
+
+
 @pytest.mark.skip(reason="POST /accounts требует client_token или другого механизма аутентификации, который пока не реализован.")
 def test_create_account(init_bank_tokens): # Добавляем фикстуру как аргумент
     """
@@ -47,7 +78,7 @@ def test_create_account(init_bank_tokens): # Добавляем фикстуру
 
 
 @pytest.mark.skip(reason="ABank API возвращает Internal Server Error при получении деталей счета.")
-def test_get_account_details():
+def test_get_account_details(create_consent_fixture): # Добавляем фикстуру как аргумент
     """
     Тест для получения деталей счета.
     """
@@ -85,6 +116,92 @@ def test_get_account_details():
     assert "account" in response.json()
     assert response.json()["account"][0]["accountId"] == TEST_ACCOUNT_ID
     print(f"Детали счета {TEST_ACCOUNT_ID} успешно получены.")
+
+@pytest.mark.skip(reason="ABank API возвращает Internal Server Error при получении баланса счета.")
+def test_get_account_balances(create_consent_fixture): # Добавляем фикстуру как аргумент
+    """
+    Тест для получения баланса счета.
+    """
+    global TEST_CONSENT_ID
+    print("\n--- Тест: Получение баланса счета для ABank ---")
+
+    # Убедимся, что TEST_CONSENT_ID существует
+    assert TEST_CONSENT_ID is not None, "Consent ID не был создан в предыдущем тесте."
+    assert TEST_ACCOUNT_ID is not None, "Account ID не был создан или получен в предыдущем тесте."
+
+    # 1. Получение баланса счета
+    request_data = {
+        "bank_name": "abank",
+        "consent_id": TEST_CONSENT_ID,
+        "user_id": USER_ID
+    }
+    response = client.post(
+        f"/api/v1/data/accounts/{TEST_ACCOUNT_ID}/balances",
+        json=request_data
+    )
+    print(f"Статус ответа: {response.status_code}")
+    print(f"Тело ответа: {response.json()}")
+    assert response.status_code == 200, f"Ошибка при получении баланса счета: {response.text}"
+    assert "balances" in response.json()
+    assert isinstance(response.json()["balances"], list) # Балансы возвращаются как список
+    assert len(response.json()["balances"]) > 0
+    print(f"Баланс счета {TEST_ACCOUNT_ID} успешно получен.")
+
+
+@pytest.mark.skip(reason="PUT /accounts/{account_id}/status требует client_token или другого механизма аутентификации, который пока не реализован.")
+def test_update_account_status():
+    """
+    Тест для изменения статуса счета.
+    """
+    print("\n--- Тест: Изменение статуса счета для ABank ---")
+    assert TEST_ACCOUNT_ID is not None, "Счет не был создан в предыдущем тесте."
+
+    request_data = {
+        "bank_name": "abank", # Изменено bank_name
+        "user_id": USER_ID,
+        "status": "Disabled"
+    }
+    response = client.put(f"/api/v1/data/accounts/{TEST_ACCOUNT_ID}/status", json=request_data)
+    print(f"Статус ответа: {response.status_code}")
+    print(f"Тело ответа: {response.json()}")
+    assert response.status_code == 200, f"Ошибка при изменении статуса счета: {response.text}"
+    assert "account" in response.json()
+    assert response.json()["account"]["status"] == "Disabled"
+    print(f"Статус счета {TEST_ACCOUNT_ID} успешно изменен на Disabled.")
+
+
+@pytest.mark.skip(reason="PUT /accounts/{account_id}/close требует client_token или другого механизма аутентификации, который пока не реализован.")
+def test_close_account():
+    """
+    Тест для закрытия счета.
+    """
+    print("\n--- Тест: Закрытие счета для ABank ---")
+    assert TEST_ACCOUNT_ID is not None, "Счет не был создан в предыдущем тесте."
+
+    request_data = {
+        "bank_name": "abank", # Изменено bank_name
+        "user_id": USER_ID
+    }
+    response = client.put(f"/api/v1/data/accounts/{TEST_ACCOUNT_ID}/close", json=request_data)
+    print(f"Статус ответа: {response.status_code}")
+    print(f"Тело ответа: {response.json()}")
+    assert response.status_code == 200, f"Ошибка при закрытии счета: {response.text}"
+    assert "account" in response.json()
+    assert response.json()["account"]["status"] == "Closed"
+    print(f"Счет {TEST_ACCOUNT_ID} успешно закрыт.")
+
+
+def test_revoke_consent_after_tests():
+    """
+    Отзыв согласия после выполнения всех тестов, если оно было создано.
+    """
+    if TEST_CONSENT_ID:
+        print(f"\n--- Отзыв согласия {TEST_CONSENT_ID} для ABank ---")
+        response_revoke = client.delete(f"/api/v1/auth/consents/{TEST_CONSENT_ID}?bank_name=abank&user_id={USER_ID}") # Изменено bank_name
+        print(f"Статус ответа (отзыв): {response_revoke.status_code}")
+        print(f"Тело ответа (отзыв): {response_revoke.json()}")
+        assert response_revoke.status_code == 200, f"Ошибка при отзыве согласия: {response_revoke.text}"
+        print(f"Согласие {TEST_CONSENT_ID} успешно отозвано.")
 
 
 @pytest.mark.skip(reason="PUT /accounts/{account_id}/status требует client_token или другого механизма аутентификации, который пока не реализован.")

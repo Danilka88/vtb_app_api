@@ -24,6 +24,38 @@ def init_bank_tokens():
     print("Банк-токены успешно инициализированы.")
 
 
+@pytest.mark.skip(reason="SBank требует ручного подтверждения согласия, поэтому создание согласия невозможно в автоматическом тесте.")
+@pytest.fixture(scope="module")
+def create_consent_fixture():
+    """
+    Фикстура для создания согласия на доступ к счетам для SBank.
+    """
+    global TEST_CONSENT_ID
+    print("\n--- Создание согласия на доступ к счетам для SBank (фикстура) ---")
+    consent_request = {
+        "bank_name": "sbank",
+        "user_id": USER_ID,
+        "permissions": [
+            "ReadAccountsDetail",
+            "ReadBalances"
+        ]
+    }
+    response_create = client.post("/api/v1/auth/create-consent", json=consent_request)
+    assert response_create.status_code == 200, f"Ошибка при создании согласия: {response_create.text}"
+    TEST_CONSENT_ID = response_create.json().get("consent_id")
+    assert TEST_CONSENT_ID, "Consent ID не найден в ответе"
+    print(f"Согласие успешно создано. Consent ID: {TEST_CONSENT_ID}")
+    yield
+    # Отзыв согласия после выполнения всех тестов, если оно было создано.
+    if TEST_CONSENT_ID:
+        print(f"\n--- Отзыв согласия {TEST_CONSENT_ID} для SBank (фикстура) ---")
+        response_revoke = client.delete(f"/api/v1/auth/consents/{TEST_CONSENT_ID}?bank_name=sbank&user_id={USER_ID}")
+        print(f"Статус ответа (отзыв): {response_revoke.status_code}")
+        print(f"Тело ответа (отзыв): {response_revoke.json()}")
+        assert response_revoke.status_code == 200, f"Ошибка при отзыве согласия: {response_revoke.text}"
+        print(f"Согласие {TEST_CONSENT_ID} успешно отозвано.")
+
+
 @pytest.mark.skip(reason="POST /accounts требует client_token или другого механизма аутентификации, который пока не реализован.")
 def test_create_account(init_bank_tokens): # Добавляем фикстуру как аргумент
     """
@@ -46,8 +78,8 @@ def test_create_account(init_bank_tokens): # Добавляем фикстуру
     print(f"Счет успешно создан. Account ID: {TEST_ACCOUNT_ID}")
 
 
-@pytest.mark.skip(reason="SBank API возвращает Internal Server Error при получении деталей счета.") # Причина может быть изменена
-def test_get_account_details():
+@pytest.mark.skip(reason="SBank требует ручного подтверждения согласия, поэтому получение деталей счета невозможно в автоматическом тесте.")
+def test_get_account_details(create_consent_fixture): # Добавляем фикстуру как аргумент
     """
     Тест для получения деталей счета.
     """
@@ -85,6 +117,36 @@ def test_get_account_details():
     assert "account" in response.json()
     assert response.json()["account"][0]["accountId"] == TEST_ACCOUNT_ID
     print(f"Детали счета {TEST_ACCOUNT_ID} успешно получены.")
+
+@pytest.mark.skip(reason="SBank требует ручного подтверждения согласия, поэтому получение баланса счета невозможно в автоматическом тесте.")
+def test_get_account_balances(create_consent_fixture): # Добавляем фикстуру как аргумент
+    """
+    Тест для получения баланса счета.
+    """
+    global TEST_CONSENT_ID
+    print("\n--- Тест: Получение баланса счета для SBank ---")
+
+    # Убедимся, что TEST_CONSENT_ID существует
+    assert TEST_CONSENT_ID is not None, "Consent ID не был создан в предыдущем тесте."
+    assert TEST_ACCOUNT_ID is not None, "Account ID не был создан или получен в предыдущем тесте."
+
+    # 1. Получение баланса счета
+    request_data = {
+        "bank_name": "sbank",
+        "consent_id": TEST_CONSENT_ID,
+        "user_id": USER_ID
+    }
+    response = client.post(
+        f"/api/v1/data/accounts/{TEST_ACCOUNT_ID}/balances",
+        json=request_data
+    )
+    print(f"Статус ответа: {response.status_code}")
+    print(f"Тело ответа: {response.json()}")
+    assert response.status_code == 200, f"Ошибка при получении баланса счета: {response.text}"
+    assert "balances" in response.json()
+    assert isinstance(response.json()["balances"], list) # Балансы возвращаются как список
+    assert len(response.json()["balances"]) > 0
+    print(f"Баланс счета {TEST_ACCOUNT_ID} успешно получен.")
 
 
 @pytest.mark.skip(reason="PUT /accounts/{account_id}/status требует client_token или другого механизма аутентификации, который пока не реализован.")
