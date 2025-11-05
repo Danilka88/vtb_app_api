@@ -8,7 +8,7 @@ from app.db.database import SessionLocal
 from app.banks.vbank_client import VBankClient
 from app.banks.abank_client import ABankClient
 from app.banks.sbank_client import SBankClient
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 from sqlalchemy.orm import Session
 import httpx
 
@@ -53,7 +53,7 @@ async def create_payment(
     bank_name: str,
     request: PaymentInitiationRequest,
     db: Session = Depends(get_db),
-    consent_id: Optional[str] = Query(None, description="ID согласия на платеж. Обязателен для выполнения платежа.")
+    consent_id: str = Header(..., alias="X-Consent-Id", description="ID согласия на платеж. Обязателен для выполнения платежа.")
 ):
     """
     Инициирует разовый платеж через указанный банк.

@@ -5,8 +5,8 @@ from app.banks.base_client import BaseBankClient
 from app.core.config import settings
 
 
-from app.banks.services.accounts.base import BaseAccountsService
-from app.banks.services.payments.base import BasePaymentsService
+from app.banks.services.accounts.sbank import SBankAccountsService
+from app.banks.services.payments.sbank import SBankPaymentsService
 
 
 class SBankClient(BaseBankClient):
@@ -14,6 +14,11 @@ class SBankClient(BaseBankClient):
     Клиент для взаимодействия с API SBank.
     Реализует специфические методы для получения токенов и создания согласий.
     """
+    def __init__(self, client_id: str, client_secret: str, api_url: str):
+        super().__init__(client_id, client_secret, api_url)
+        self._accounts_service = SBankAccountsService(self)
+        self._payments_service = SBankPaymentsService(self)
+
     async def get_bank_token(self) -> dict:
         """
         Получает банк-токен для SBank.
@@ -53,15 +58,29 @@ class SBankClient(BaseBankClient):
         return response.json()["consent_id"]
 
     @property
-    def accounts(self) -> BaseAccountsService:
+    def accounts(self) -> SBankAccountsService:
         """
         Возвращает сервис для работы со счетами SBank.
         """
-        raise NotImplementedError("Сервис счетов не реализован для SBank.")
+        return self._accounts_service
 
     @property
-    def payments(self) -> BasePaymentsService:
+    def payments(self) -> SBankPaymentsService:
         """
         Возвращает сервис для работы с платежами SBank.
         """
-        raise NotImplementedError("Сервис платежей не реализован для SBank.")
+        return self._payments_service
+
+    async def get_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Получает информацию о согласии по его ID из SBank.
+        На данный момент не реализовано.
+        """
+        raise NotImplementedError("Метод get_consent не реализован для SBank.")
+
+    async def revoke_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Отзывает согласие по его ID из SBank.
+        На данный момент не реализовано.
+        """
+        raise NotImplementedError("Метод revoke_consent не реализован для SBank.")

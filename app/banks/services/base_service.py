@@ -11,44 +11,24 @@ class BaseService(ABC):
         # Это обеспечивает доступ к общему httpx.AsyncClient, URL API и конфигурации.
         self._client = client
 
-        @property
+    @property
+    def client(self) -> httpx.AsyncClient:
+        """
+        Возвращает асинхронный HTTP-клиент, используемый основным клиентом банка.
+        """
+        # Предполагаем, что у основного клиента есть атрибут _async_client
+        return self._client._async_client
 
-        def client(self) -> httpx.AsyncClient:
+    @property
+    def api_url(self) -> str:
+        """
+        Возвращает базовый URL API банка, к которому относится сервис.
+        """
+        return self._client.api_url
 
-            """
-
-            Возвращает асинхронный HTTP-клиент, используемый основным клиентом банка.
-
-            """
-
-            # Предполагаем, что у основного клиента есть атрибут _async_client
-
-            return self._client._async_client
-
-    
-
-        @property
-
-        def api_url(self) -> str:
-
-            """
-
-            Возвращает базовый URL API банка, к которому относится сервис.
-
-            """
-
-            return self._client.api_url
-
-    
-
-        @property
-
-        def main_client(self):
-
-            """
-
-            Возвращает экземпляр основного клиента банка (например, VBankClient).
-
-            """
-
-            return self._client
+    @property
+    def main_client(self):
+        """
+        Возвращает экземпляр основного клиента банка (например, VBankClient).
+        """
+        return self._client

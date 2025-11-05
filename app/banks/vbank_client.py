@@ -31,6 +31,7 @@ class VBankClient(BaseBankClient):
         return response.json()
 
     async def create_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
+        # DeprecationWarning: datetime.datetime.utcnow() is deprecated. Use datetime.datetime.now(datetime.UTC).
         """
         Создает согласие на доступ к данным счета для VBank.
         Этот метод обрабатывает только согласия, связанные с доступом к данным (не платежные).
@@ -58,7 +59,8 @@ class VBankClient(BaseBankClient):
         response.raise_for_status()
         return response.json()["consent_id"]
 
-    async def create_payment_consent(self, access_token: str, permissions: list[str], user_id: str, requesting_bank: str, debtor_account_id: str, amount: str) -> str:
+    async def create_payment_consent(self, access_token: str, permissions: list[str], user_id: str, requesting_bank: str, debtor_account_id: str, amount: str, currency: str = "RUB") -> str:
+        # DeprecationWarning: datetime.datetime.utcnow() is deprecated. Use datetime.datetime.now(datetime.UTC).
         """
         Создает платежное согласие для VBank.
         """
@@ -78,11 +80,53 @@ class VBankClient(BaseBankClient):
                 "client_id": user_id,
                 "requesting_bank": requesting_bank,
                 "debtor_account": debtor_account_id,
-                "amount": amount
+                "amount": amount,
+                "currency": currency
             }
         )
         response.raise_for_status()
         return response.json()["consent_id"]
+
+    async def get_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Получает информацию о согласии по его ID из VBank.
+        """
+        response = await self._async_client.get(
+            f"{self.api_url}/account-consents/{consent_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def revoke_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Отзывает согласие по его ID из VBank.
+        """
+        response = await self._async_client.delete(
+            f"{self.api_url}/account-consents/{consent_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status() # Выбросит исключение для неуспешных статусов (4xx, 5xx)
+
+        if response.status_code == 204:
+            return {"status": "success", "message": "Consent revoked successfully (no content)"}
+        
+        if not response.text: # Если ответ пустой
+            return {"status": "success", "message": "Consent revoked successfully (empty response)"}
+
+        try:
+            return response.json()
+        except Exception: # Ловим любую ошибку при парсинге JSON
+            # Если не удалось распарсить JSON, но статус был успешным (2xx, кроме 204)
+            return {"status": "success", "message": "Consent revoked successfully (non-json response)"}
 
     @property
     def accounts(self) -> VBankAccountsService:

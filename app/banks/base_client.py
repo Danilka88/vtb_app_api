@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 import httpx
 
+from app.core.config import settings
+
 from app.banks.services.accounts.base import BaseAccountsService
 from app.banks.services.payments.base import BasePaymentsService
 
@@ -16,8 +18,11 @@ class BaseBankClient(ABC):
         self.client_secret = client_secret
         self.api_url = api_url
         # Инициализируем асинхронный HTTP-клиент httpx.
-        # В будущем здесь будет добавлена конфигурация mTLS.
-        self._async_client = httpx.AsyncClient()
+        # Добавляем конфигурацию mTLS, если пути к сертификату и ключу указаны.
+        if settings.CLIENT_CERT_PATH and settings.CLIENT_KEY_PATH:
+            self._async_client = httpx.AsyncClient(cert=(settings.CLIENT_CERT_PATH, settings.CLIENT_KEY_PATH))
+        else:
+            self._async_client = httpx.AsyncClient()
 
     @abstractmethod
     async def get_bank_token(self) -> dict:
@@ -35,6 +40,20 @@ class BaseBankClient(ABC):
         Должен быть реализован в классах-наследниках.
         Принимает токен доступа, список разрешений и ID пользователя.
         Возвращает идентификатор созданного согласия (consent_id).
+        """
+        pass
+
+    @abstractmethod
+    async def get_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Абстрактный метод для получения информации о согласии по его ID.
+        """
+        pass
+
+    @abstractmethod
+    async def revoke_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Абстрактный метод для отзыва согласия по его ID.
         """
         pass
 

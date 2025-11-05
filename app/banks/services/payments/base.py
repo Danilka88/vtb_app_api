@@ -41,7 +41,7 @@ class BasePaymentsService(BaseService, ABC):
         pass
 
     @abstractmethod
-    async def create_vrp_payment(self, access_token: str, consent_id: str, user_id: str, payment_data: VRPPaymentRequest) -> VRPStatus:
+    async def create_vrp_payment(self, access_token: str, consent_id: str, user_id: str, payment_data: VRPPaymentRequest) -> dict:
         """
         Абстрактный метод для инициирования платежа в рамках VRP согласия.
         """

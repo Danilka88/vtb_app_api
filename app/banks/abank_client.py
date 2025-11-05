@@ -5,8 +5,8 @@ from app.banks.base_client import BaseBankClient
 from app.core.config import settings
 
 
-from app.banks.services.accounts.base import BaseAccountsService
-from app.banks.services.payments.base import BasePaymentsService
+from app.banks.services.accounts.abank import ABankAccountsService
+from app.banks.services.payments.abank import ABankPaymentsService
 
 
 class ABankClient(BaseBankClient):
@@ -14,7 +14,21 @@ class ABankClient(BaseBankClient):
     Клиент для взаимодействия с API ABank.
     Реализует специфические методы для получения токенов и создания согласий.
     """
+    def __init__(self, client_id: str, client_secret: str, api_url: str):
+        super().__init__(client_id, client_secret, api_url)
+        self._accounts_service = ABankAccountsService(self)
+        self._payments_service = ABankPaymentsService(self)
+
     async def get_bank_token(self) -> dict:
+        """
+        Получает банк-токен для ABank.
+        """
+        response = await self._async_client.post(
+            f"{self.api_url}/auth/bank-token",
+            params={"client_id": self.client_id, "client_secret": self.client_secret}
+        )
+        response.raise_for_status()
+        return response.json()
         """
         Получает банк-токен для ABank.
         """
@@ -53,15 +67,29 @@ class ABankClient(BaseBankClient):
         return response.json()["consent_id"]
 
     @property
-    def accounts(self) -> BaseAccountsService:
+    def accounts(self) -> ABankAccountsService:
         """
         Возвращает сервис для работы со счетами ABank.
         """
-        raise NotImplementedError("Сервис счетов не реализован для ABank.")
+        return self._accounts_service
 
     @property
-    def payments(self) -> BasePaymentsService:
+    def payments(self) -> ABankPaymentsService:
         """
         Возвращает сервис для работы с платежами ABank.
         """
-        raise NotImplementedError("Сервис платежей не реализован для ABank.")
+        return self._payments_service
+
+    async def get_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Получает информацию о согласии по его ID из ABank.
+        На данный момент не реализовано.
+        """
+        raise NotImplementedError("Метод get_consent не реализован для ABank.")
+
+    async def revoke_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Отзывает согласие по его ID из ABank.
+        На данный момент не реализовано.
+        """
+        raise NotImplementedError("Метод revoke_consent не реализован для ABank.")

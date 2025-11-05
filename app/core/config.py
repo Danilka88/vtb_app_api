@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     ABANK_API_URL: str = "https://abank.open.bankingapi.ru" # Базовый URL API ABank
     SBANK_API_URL: str = "https://sbank.open.bankingapi.ru" # Базовый URL API SBank
 
-    CLIENT_CERT_PATH: str # Путь к файлу клиентского сертификата для mTLS
-    CLIENT_KEY_PATH: str # Путь к файлу приватного ключа клиентского сертификата для mTLS
+    CLIENT_CERT_PATH: str | None = None # Путь к файлу клиентского сертификата для mTLS
+    CLIENT_KEY_PATH: str | None = None # Путь к файлу приватного ключа клиентского сертификата для mTLS
 
     class Config:
         env_file = ".env"

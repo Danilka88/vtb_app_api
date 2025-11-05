@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import httpx
@@ -9,6 +9,7 @@ from app.db.database import SessionLocal
 from app.banks.vbank_client import VBankClient
 from app.banks.abank_client import ABankClient
 from app.banks.sbank_client import SBankClient
+from app.utils.bank_clients import get_bank_client
 
 router = APIRouter()
 
@@ -31,9 +32,9 @@ class ConsentRequest(BaseModel):
         "ReadOffers",
         "ReadStatements"
     ]
-    user_id: str # Идентификатор пользователя, для которого запрашивается согласие (например, team042-1)
-    debtor_account: str | None = None # Идентификатор счета дебитора (счета списания) для платежного согласия. Обязателен для платежных согласий.
-    amount: str | None = None # Сумма платежа для платежного согласия. Обязательна для одноразовых платежных согласий.
+    user_id: str # Идентификатор пользователя, для которого запрашивается согласие (например, team042-1 до team042-10)
+    debtor_account: str | None = None # Идентификатор счета дебитора (счета списания). Обязателен для платежных согласий.
+    amount: str | None = None # Сумма платежа. Обязательна для платежных согласий.
 
 
 # Dependency
@@ -130,3 +131,53 @@ async def create_consent(request: ConsentRequest, db: Session = Depends(get_db))
     except Exception as e:
         # Обработка любых других непредвиденных ошибок
         raise HTTPException(status_code=500, detail=f"Произошла непредвиденная ошибка при создании согласия для банка {bank_name}: {e}")
+
+
+@router.get("/consents/{consent_id}")
+async def get_consent_details(consent_id: str, bank_name: str = Query(..., description="Название банка (например, 'vbank')"), user_id: str = Query(..., description="Идентификатор пользователя"), db: Session = Depends(get_db)):
+    """
+    Получает детали согласия по его ID.
+    """
+    bank_client = get_bank_client(bank_name.lower())
+    access_token = crud.get_decrypted_token(db, bank_name.lower())
+    if not access_token:
+        raise HTTPException(status_code=404, detail=f"Токен доступа для банка {bank_name} не найден.")
+
+    try:
+        consent_details = await bank_client.get_consent(access_token, consent_id, user_id)
+        return {"message": "Детали согласия успешно получены.", "details": consent_details}
+    except NotImplementedError:
+        raise HTTPException(status_code=501, detail=f"Получение деталей согласия не реализовано для банка {bank_name}.")
+    except httpx.HTTPStatusError as e:
+        try:
+            error_detail = e.response.json()
+        except ValueError:
+            error_detail = e.response.text
+        raise HTTPException(status_code=e.response.status_code, detail=f"Не удалось получить детали согласия для банка {bank_name}: {error_detail}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Произошла непредвиденная ошибка при получении деталей согласия для банка {bank_name}: {e}")
+
+
+@router.delete("/consents/{consent_id}")
+async def revoke_consent(consent_id: str, bank_name: str = Query(..., description="Название банка (например, 'vbank')"), user_id: str = Query(..., description="Идентификатор пользователя"), db: Session = Depends(get_db)):
+    """
+    Отзывает согласие по его ID.
+    """
+    bank_client = get_bank_client(bank_name.lower())
+    access_token = crud.get_decrypted_token(db, bank_name.lower())
+    if not access_token:
+        raise HTTPException(status_code=404, detail=f"Токен доступа для банка {bank_name} не найден.")
+
+    try:
+        revoke_result = await bank_client.revoke_consent(access_token, consent_id, user_id)
+        return {"message": "Согласие успешно отозвано.", "details": revoke_result}
+    except NotImplementedError:
+        raise HTTPException(status_code=501, detail=f"Отзыв согласия не реализован для банка {bank_name}.")
+    except httpx.HTTPStatusError as e:
+        try:
+            error_detail = e.response.json()
+        except ValueError:
+            error_detail = e.response.text
+        raise HTTPException(status_code=e.response.status_code, detail=f"Не удалось отозвать согласие для банка {bank_name}: {error_detail}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Произошла непредвиденная ошибка при отзыве согласия для банка {bank_name}: {e}")

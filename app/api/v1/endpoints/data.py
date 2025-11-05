@@ -9,6 +9,7 @@ from app.db.database import SessionLocal
 from app.banks.vbank_client import VBankClient
 from app.banks.abank_client import ABankClient
 from app.banks.sbank_client import SBankClient
+from app.utils.bank_clients import get_bank_client
 
 router = APIRouter()
 
@@ -51,19 +52,6 @@ def get_db():
     finally:
         db.close()
 
-
-def get_bank_client(bank_name: str):
-    """
-    Вспомогательная функция для получения экземпляра клиента банка по его имени.
-    """
-    if bank_name == "vbank":
-        return VBankClient(client_id=settings.CLIENT_ID, client_secret=settings.CLIENT_SECRET, api_url=settings.VBANK_API_URL)
-    elif bank_name == "abank":
-        return ABankClient(client_id=settings.CLIENT_ID, client_secret=settings.CLIENT_SECRET, api_url=settings.ABANK_API_URL)
-    elif bank_name == "sbank":
-        return SBankClient(client_id=settings.CLIENT_ID, client_secret=settings.CLIENT_SECRET, api_url=settings.SBANK_API_URL)
-    else:
-        raise HTTPException(status_code=400, detail="Неподдерживаемый банк.")
 
 
 @router.post("/accounts")
