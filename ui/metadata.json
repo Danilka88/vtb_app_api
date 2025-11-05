@@ -1,0 +1,5 @@
+{
+  "name": "Multibank Nexus",
+  "description": "A unified financial dashboard that aggregates all your bank accounts, cards, and investments. Gain a clear view of your financial landscape, track spending, set goals, and receive personalized AI-powered insights to make smarter financial decisions.",
+  "requestFramePermissions": []
+}

@@ -14,6 +14,10 @@ router = APIRouter()
 
 
 class ConsentRequest(BaseModel):
+    """
+    Модель запроса для создания согласия на доступ к данным или на выполнение платежа.
+    Определяет, какой банк, какие разрешения и для какого пользователя запрашиваются.
+    """
     bank_name: str
     permissions: list[str] = [
         "ReadAccountsDetail",
@@ -22,17 +26,22 @@ class ConsentRequest(BaseModel):
         "ReadTransactionsDebits",
         "ReadTransactionsDetail",
         "ReadBeneficiariesDetail",
-        "ReadDirectDebits",
         "ReadStandingOrders",
         "ReadProducts",
         "ReadOffers",
         "ReadStatements"
     ]
-    user_id: str # Идентификатор пользователя, например, team042-1
+    user_id: str # Идентификатор пользователя, для которого запрашивается согласие (например, team042-1)
+    debtor_account: str | None = None # Идентификатор счета дебитора (счета списания) для платежного согласия. Обязателен для платежных согласий.
+    amount: str | None = None # Сумма платежа для платежного согласия. Обязательна для одноразовых платежных согласий.
 
 
 # Dependency
 def get_db():
+    """
+    Зависимость FastAPI для получения сессии базы данных.
+    Создает новую сессию для каждого запроса и автоматически закрывает ее после завершения.
+    """
     db = SessionLocal()
     try:
         yield db
@@ -43,7 +52,9 @@ def get_db():
 @router.post("/init-bank-tokens")
 async def init_bank_tokens(db: Session = Depends(get_db)):
     """
-    Initializes and saves bank tokens for all supported banks using the simple bank-token flow.
+    Инициализирует и сохраняет токены доступа для всех поддерживаемых банков.
+    Использует упрощенный поток получения `bank-token` для каждого банка.
+    Эти токены необходимы для дальнейшего взаимодействия с API банков (например, для создания согласий).
     """
     bank_clients = {
         "vbank": VBankClient(client_id=settings.CLIENT_ID, client_secret=settings.CLIENT_SECRET, api_url=settings.VBANK_API_URL),
@@ -61,20 +72,29 @@ async def init_bank_tokens(db: Session = Depends(get_db)):
                 expires_in=token_data["expires_in"]
             )
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to get token for {bank_name}: {e}")
+            # Логируем ошибку для отладки, но пользователю возвращаем более общее сообщение
+            raise HTTPException(status_code=500, detail=f"Не удалось получить токен для банка {bank_name}: {e}")
 
-    return {"message": "Bank tokens initialized successfully."}
-
+    return {"message": "Токены банков успешно инициализированы."}
 
 @router.post("/create-consent")
 async def create_consent(request: ConsentRequest, db: Session = Depends(get_db)):
     """
-    Creates a consent for a given bank with specified permissions.
+    Создает согласие для указанного банка с заданными разрешениями.
+    Этот эндпоинт универсален и может создавать как согласия на доступ к счетам,
+    так и согласия на выполнение платежей, в зависимости от переданных разрешений.
+
+    - Если в `permissions` присутствует `CreateDomesticSinglePayment`, создается платежное согласие.
+      Для платежного согласия требуются `debtor_account` (идентификатор счета дебитора) и `amount`.
+    - В противном случае создается согласие на доступ к данным счетов.
+
+    Возвращает `consent_id`, который затем используется для запросов данных или инициирования платежей.
     """
     bank_name = request.bank_name.lower()
     permissions = request.permissions
     user_id = request.user_id
 
+    # Инициализация клиента банка в зависимости от имени банка
     if bank_name == "vbank":
         bank_client = VBankClient(client_id=settings.CLIENT_ID, client_secret=settings.CLIENT_SECRET, api_url=settings.VBANK_API_URL)
     elif bank_name == "abank":
@@ -82,21 +102,31 @@ async def create_consent(request: ConsentRequest, db: Session = Depends(get_db))
     elif bank_name == "sbank":
         bank_client = SBankClient(client_id=settings.CLIENT_ID, client_secret=settings.CLIENT_SECRET, api_url=settings.SBANK_API_URL)
     else:
-        raise HTTPException(status_code=400, detail="Unsupported bank.")
+        raise HTTPException(status_code=400, detail="Неподдерживаемый банк.")
 
+    # Получение токена доступа из базы данных
     access_token = crud.get_decrypted_token(db, bank_name)
     if not access_token:
-        raise HTTPException(status_code=404, detail=f"No access token found for {bank_name}. Please initialize bank tokens first.")
+        raise HTTPException(status_code=404, detail=f"Токен доступа для банка {bank_name} не найден. Пожалуйста, сначала инициализируйте токены банков.")
 
     try:
-        consent_id = await bank_client.create_consent(access_token, permissions, user_id)
-        return {"message": "Consent created successfully.", "consent_id": consent_id}
+        # Проверка на тип согласия: платежное или на доступ к данным
+        if "CreateDomesticSinglePayment" in permissions:
+            # Для платежного согласия требуются debtor_account и amount
+            if not request.debtor_account or not request.amount:
+                raise HTTPException(status_code=400, detail="Для платежного согласия требуются 'debtor_account' и 'amount'.")
+            consent_id = await bank_client.create_payment_consent(access_token, permissions, user_id, settings.CLIENT_ID, request.debtor_account, request.amount)
+        else:
+            # Создание согласия на доступ к данным
+            consent_id = await bank_client.create_consent(access_token, permissions, user_id)
+        return {"message": "Согласие успешно создано.", "consent_id": consent_id}
     except httpx.HTTPStatusError as e:
-        # Попытка извлечь более детальное сообщение об ошибке из ответа банка
+        # Обработка ошибок HTTP, полученных от API банка
         try:
             error_detail = e.response.json()
         except ValueError:
             error_detail = e.response.text
-        raise HTTPException(status_code=e.response.status_code, detail=f"Failed to create consent for {bank_name}: {error_detail}")
+        raise HTTPException(status_code=e.response.status_code, detail=f"Не удалось создать согласие для банка {bank_name}: {error_detail}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An unexpected error occurred while creating consent for {bank_name}: {e}")
+        # Обработка любых других непредвиденных ошибок
+        raise HTTPException(status_code=500, detail=f"Произошла непредвиденная ошибка при создании согласия для банка {bank_name}: {e}")

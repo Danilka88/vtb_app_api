@@ -3,97 +3,97 @@ from datetime import datetime, timedelta
 
 from app.banks.base_client import BaseBankClient
 from app.core.config import settings
+from app.banks.services.accounts.vbank import VBankAccountsService
+from app.banks.services.payments.vbank import VBankPaymentsService
 
 
 class VBankClient(BaseBankClient):
+    """
+    Клиент для взаимодействия с API VBank.
+    Реализует специфические методы для получения токенов, создания согласий
+    и предоставляет доступ к сервисам счетов и платежей VBank.
+    """
+    def __init__(self, client_id: str, client_secret: str, api_url: str):
+        super().__init__(client_id, client_secret, api_url)
+        # Инициализация специфичных для VBank сервисов
+        self._accounts_service = VBankAccountsService(self)
+        self._payments_service = VBankPaymentsService(self)
+
     async def get_bank_token(self) -> dict:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.api_url}/auth/bank-token",
-                params={"client_id": self.client_id, "client_secret": self.client_secret}
-            )
-            response.raise_for_status()  # Raise an exception for bad status codes
-            return response.json()
+        """
+        Получает банк-токен для VBank.
+        """
+        response = await self._async_client.post(
+            f"{self.api_url}/auth/bank-token",
+            params={"client_id": self.client_id, "client_secret": self.client_secret}
+        )
+        response.raise_for_status()  # Вызывает исключение для плохих статусов HTTP
+        return response.json()
 
     async def create_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
-        # Устанавливаем значения по умолчанию для опциональных полей
+        """
+        Создает согласие на доступ к данным счета для VBank.
+        Этот метод обрабатывает только согласия, связанные с доступом к данным (не платежные).
+        """
         now = datetime.utcnow()
         expiration_date = (now + timedelta(days=365)).isoformat(timespec='seconds') + 'Z'
         transaction_from_date = (now - timedelta(days=365)).isoformat(timespec='seconds') + 'Z'
         transaction_to_date = now.isoformat(timespec='seconds') + 'Z'
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.api_url}/account-consents/request",
-                headers={
-                    "Authorization": f"Bearer {access_token}",
-                    "X-Requesting-Bank": settings.CLIENT_ID,
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "permissions": permissions,
-                    "expiration_date": expiration_date,
-                    "transaction_from_date": transaction_from_date,
-                    "transaction_to_date": transaction_to_date,
-                    "client_id": user_id  # Используем user_id как client_id в теле запроса
-                }
-            )
-            response.raise_for_status()
-            return response.json()["consent_id"]
+        response = await self._async_client.post(
+            f"{self.api_url}/account-consents/request",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID,
+                "Content-Type": "application/json"
+            },
+            json={
+                "permissions": permissions,
+                "expiration_date": expiration_date,
+                "transaction_from_date": transaction_from_date,
+                "transaction_to_date": transaction_to_date,
+                "client_id": user_id
+            }
+        )
+        response.raise_for_status()
+        return response.json()["consent_id"]
 
-    async def get_accounts(self, access_token: str, consent_id: str, user_id: str) -> list[dict]:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{self.api_url}/accounts",
-                headers={
-                    "Authorization": f"Bearer {access_token}",
-                    "X-Requesting-Bank": settings.CLIENT_ID,
-                    "X-Consent-Id": consent_id
-                },
-                params={
-                    "client_id": user_id  # Используем user_id как client_id в query-параметре
-                }
-            )
-            response.raise_for_status()
-            response_data = response.json()
-            if "data" not in response_data or "account" not in response_data["data"]:
-                raise ValueError(f"Expected 'data.account' in response, but got: {response_data}")
-            return response_data["data"]["account"]
+    async def create_payment_consent(self, access_token: str, permissions: list[str], user_id: str, requesting_bank: str, debtor_account_id: str, amount: str) -> str:
+        """
+        Создает платежное согласие для VBank.
+        """
+        now = datetime.utcnow()
+        expiration_date = (now + timedelta(days=365)).isoformat(timespec='seconds') + 'Z'
 
-    async def get_account_balances(self, access_token: str, consent_id: str, user_id: str, account_id: str) -> dict:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{self.api_url}/accounts/{account_id}/balances",
-                headers={
-                    "Authorization": f"Bearer {access_token}",
-                    "X-Requesting-Bank": settings.CLIENT_ID,
-                    "X-Consent-Id": consent_id
-                },
-                params={
-                    "client_id": user_id  # Используем user_id как client_id в query-параметре
-                }
-            )
-            response.raise_for_status()
-            response_data = response.json()
-            if "data" not in response_data or "balance" not in response_data["data"]:
-                raise ValueError(f"Expected 'data.balance' in response, but got: {response_data}")
-            return response_data["data"]["balance"]
+        response = await self._async_client.post(
+            f"{self.api_url}/payment-consents/request",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": requesting_bank,
+                "Content-Type": "application/json"
+            },
+            json={
+                "permissions": permissions,
+                "expiration_date": expiration_date,
+                "client_id": user_id,
+                "requesting_bank": requesting_bank,
+                "debtor_account": debtor_account_id,
+                "amount": amount
+            }
+        )
+        response.raise_for_status()
+        return response.json()["consent_id"]
 
-    async def get_account_transactions(self, access_token: str, consent_id: str, user_id: str, account_id: str) -> list[dict]:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{self.api_url}/accounts/{account_id}/transactions",
-                headers={
-                    "Authorization": f"Bearer {access_token}",
-                    "X-Requesting-Bank": settings.CLIENT_ID,
-                    "X-Consent-Id": consent_id
-                },
-                params={
-                    "client_id": user_id  # Используем user_id как client_id в query-параметре
-                }
-            )
-            response.raise_for_status()
-            response_data = response.json()
-            if "data" not in response_data or "transaction" not in response_data["data"]:
-                raise ValueError(f"Expected 'data.transaction' in response, but got: {response_data}")
-            return response_data["data"]["transaction"]
+    @property
+    def accounts(self) -> VBankAccountsService:
+        """
+        Возвращает сервис для работы со счетами VBank.
+        """
+        return self._accounts_service
+
+    @property
+    def payments(self) -> VBankPaymentsService:
+        """
+        Возвращает сервис для работы с платежами VBank.
+        """ 
+        return self._payments_service
