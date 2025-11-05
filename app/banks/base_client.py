@@ -20,8 +20,10 @@ class BaseBankClient(ABC):
         # Инициализируем асинхронный HTTP-клиент httpx.
         # Добавляем конфигурацию mTLS, если пути к сертификату и ключу указаны.
         if settings.CLIENT_CERT_PATH and settings.CLIENT_KEY_PATH:
+            print(f"DEBUG: Инициализация httpx.AsyncClient с mTLS. Cert: {settings.CLIENT_CERT_PATH}, Key: {settings.CLIENT_KEY_PATH}")
             self._async_client = httpx.AsyncClient(cert=(settings.CLIENT_CERT_PATH, settings.CLIENT_KEY_PATH))
         else:
+            print("DEBUG: Инициализация httpx.AsyncClient без mTLS.")
             self._async_client = httpx.AsyncClient()
 
     @abstractmethod

@@ -84,6 +84,35 @@ def test_get_account_details():
     assert response.json()["account"][0]["accountId"] == TEST_ACCOUNT_ID
     print(f"Детали счета {TEST_ACCOUNT_ID} успешно получены.")
 
+def test_get_account_balances():
+    """
+    Тест для получения баланса счета.
+    """
+    global TEST_CONSENT_ID
+    print("\n--- Тест: Получение баланса счета ---")
+
+    # Убедимся, что TEST_CONSENT_ID существует
+    assert TEST_CONSENT_ID is not None, "Consent ID не был создан в предыдущем тесте."
+    assert TEST_ACCOUNT_ID is not None, "Account ID не был создан или получен в предыдущем тесте."
+
+    # 1. Получение баланса счета
+    request_data = {
+        "bank_name": "vbank",
+        "consent_id": TEST_CONSENT_ID,
+        "user_id": USER_ID
+    }
+    response = client.post(
+        f"/api/v1/data/accounts/{TEST_ACCOUNT_ID}/balances",
+        json=request_data
+    )
+    print(f"Статус ответа: {response.status_code}")
+    print(f"Тело ответа: {response.json()}")
+    assert response.status_code == 200, f"Ошибка при получении баланса счета: {response.text}"
+    assert "balances" in response.json()
+    assert isinstance(response.json()["balances"], list) # Балансы возвращаются как список
+    assert len(response.json()["balances"]) > 0
+    print(f"Баланс счета {TEST_ACCOUNT_ID} успешно получен.")
+
 
 @pytest.mark.skip(reason="PUT /accounts/{account_id}/status требует client_token или другого механизма аутентификации, который пока не реализован.")
 def test_update_account_status():

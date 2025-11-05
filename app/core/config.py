@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 
 
 class Settings(BaseSettings):
@@ -19,8 +20,7 @@ class Settings(BaseSettings):
     CLIENT_CERT_PATH: str | None = None # Путь к файлу клиентского сертификата для mTLS
     CLIENT_KEY_PATH: str | None = None # Путь к файлу приватного ключа клиентского сертификата для mTLS
 
-    class Config:
-        env_file = ".env"
+    model_config = ConfigDict(env_file=".env")
 
 
 settings = Settings()
