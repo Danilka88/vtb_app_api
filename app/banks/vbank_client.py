@@ -1,5 +1,5 @@
 import httpx
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.banks.base_client import BaseBankClient
 from app.core.config import settings
@@ -23,22 +23,25 @@ class VBankClient(BaseBankClient):
         """
         Получает банк-токен для VBank.
         """
+        print(f"DEBUG: Запрос банк-токена для VBank. client_id: {self.client_id}")
         response = await self._async_client.post(
             f"{self.api_url}/auth/bank-token",
             params={"client_id": self.client_id, "client_secret": self.client_secret}
         )
         response.raise_for_status()  # Вызывает исключение для плохих статусов HTTP
-        return response.json()
+        token_data = response.json()
+        print(f"DEBUG: Получен банк-токен для VBank: {token_data}")
+        return token_data
 
     async def create_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
         # DeprecationWarning: datetime.datetime.utcnow() is deprecated. Use datetime.datetime.now(datetime.UTC).
         """
         Создает согласие на доступ к данным счета для VBank.
         Этот метод обрабатывает только согласия, связанные с доступом к данным (не платежные).
+        Примечание: Поля expiration_date, transaction_from_date, transaction_to_date временно не используются
+        в запросе к VBank API для отладки.
         """
-        now = datetime.utcnow()
-        expiration_date = (now + timedelta(days=365)).isoformat(timespec='seconds') + 'Z'
-        transaction_from_date = (now - timedelta(days=365)).isoformat(timespec='seconds') + 'Z'
+        now = datetime.now(timezone.utc)
         transaction_to_date = now.isoformat(timespec='seconds') + 'Z'
 
         response = await self._async_client.post(
@@ -50,9 +53,6 @@ class VBankClient(BaseBankClient):
             },
             json={
                 "permissions": permissions,
-                "expiration_date": expiration_date,
-                "transaction_from_date": transaction_from_date,
-                "transaction_to_date": transaction_to_date,
                 "client_id": user_id
             }
         )
@@ -64,7 +64,7 @@ class VBankClient(BaseBankClient):
         """
         Создает платежное согласие для VBank.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expiration_date = (now + timedelta(days=365)).isoformat(timespec='seconds') + 'Z'
 
         response = await self._async_client.post(

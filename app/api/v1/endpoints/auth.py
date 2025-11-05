@@ -35,6 +35,9 @@ class ConsentRequest(BaseModel):
     user_id: str # Идентификатор пользователя, для которого запрашивается согласие (например, team042-1 до team042-10)
     debtor_account: str | None = None # Идентификатор счета дебитора (счета списания). Обязателен для платежных согласий.
     amount: str | None = None # Сумма платежа. Обязательна для платежных согласий.
+    expiration_date: str | None = None
+    transaction_from_date: str | None = None
+    transaction_to_date: str | None = None
 
 
 # Dependency

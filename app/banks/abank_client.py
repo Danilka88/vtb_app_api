@@ -1,5 +1,5 @@
 import httpx
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.banks.base_client import BaseBankClient
 from app.core.config import settings
@@ -29,21 +29,12 @@ class ABankClient(BaseBankClient):
         )
         response.raise_for_status()
         return response.json()
-        """
-        Получает банк-токен для ABank.
-        """
-        response = await self._async_client.post(
-            f"{self.api_url}/auth/bank-token",
-            params={"client_id": self.client_id, "client_secret": self.client_secret}
-        )
-        response.raise_for_status()
-        return response.json()
 
     async def create_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
         """
         Создает согласие на доступ к данным счета для ABank.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         expiration_date = (now + timedelta(days=365)).isoformat(timespec='seconds') + 'Z'
         transaction_from_date = (now - timedelta(days=365)).isoformat(timespec='seconds') + 'Z'
         transaction_to_date = now.isoformat(timespec='seconds') + 'Z'
@@ -90,6 +81,25 @@ class ABankClient(BaseBankClient):
     async def revoke_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
         """
         Отзывает согласие по его ID из ABank.
-        На данный момент не реализовано.
         """
-        raise NotImplementedError("Метод revoke_consent не реализован для ABank.")
+        response = await self._async_client.delete(
+            f"{self.api_url}/account-consents/{consent_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status() # Выбросит исключение для неуспешных статусов (4xx, 5xx)
+
+        if response.status_code == 204:
+            return {"status": "success", "message": "Consent revoked successfully (no content)"}
+        
+        if not response.text: # Если ответ пустой
+            return {"status": "success", "message": "Consent revoked successfully (empty response)"}
+
+        try:
+            return response.json()
+        except Exception: # Ловим любую ошибку при парсинге JSON
+            # Если не удалось распарсить JSON, но статус был успешным (2xx, кроме 204)
+            return {"status": "success", "message": "Consent revoked successfully (non-json response)"}

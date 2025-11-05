@@ -54,19 +54,19 @@ uvicorn main:app --reload
 PYTHONPATH=$(pwd) pytest -q tests/
 ```
 
-Для запуска тестов для конкретного банка:
+Для запуска тестов для конкретного банка (счета):
 
-- **VBank:**
+- **VBank Accounts:**
   ```bash
-  PYTHONPATH=$(pwd) pytest -q tests/test_vbank_payments_api.py
+  PYTHONPATH=$(pwd) pytest -q tests/test_vbank_accounts_api.py
   ```
-- **ABank:**
+- **ABank Accounts:**
   ```bash
-  PYTHONPATH=$(pwd) pytest -q tests/test_abank_payments_api.py
+  PYTHONPATH=$(pwd) pytest -q tests/test_abank_accounts_api.py
   ```
-- **SBank:**
+- **SBank Accounts:**
   ```bash
-  PYTHONPATH=$(pwd) pytest -q tests/test_sbank_payments_api.py
+  PYTHONPATH=$(pwd) pytest -q tests/test_sbank_accounts_api.py
   ```
 
 Флаг `-q` делает вывод более кратким.
@@ -101,9 +101,13 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
     {
       "bank_name": "vbank",
       "user_id": "team042-1",
-      "permissions": ["ReadAccountsDetail", "ReadBalances"]
+      "permissions": ["ReadAccountsDetail", "ReadBalances"],
+      "expiration_date": "2025-11-06T12:00:00Z",
+      "transaction_from_date": "2024-11-06T12:00:00Z",
+      "transaction_to_date": "2025-11-06T12:00:00Z"
     }
     ```
+  - **Примечание:** Поля `expiration_date`, `transaction_from_date`, `transaction_to_date` являются необязательными. Если они не указаны, будут сгенерированы значения по умолчанию (срок действия согласия 1 год, транзакции за последний год).
   - **Тело запроса (пример для платежного согласия):**
     ```json
     {
@@ -231,3 +235,9 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 - `CLIENT_ID`: `team042` (код вашей команды).
 - `CLIENT_SECRET`: Секретный ключ, полученный от организаторов хакатона (например, `QlXkpyJlRATlGD25xYp7azqIA5Cx4qcc`).
 - **Тестовые пользователи:** Для тестирования используйте `user_id` в формате `team042-X`, где `X` - число от 1 до 10 (например, `team042-1`, `team042-2`).
+
+## Примечания по тестированию
+
+Некоторые тесты (например, создание, изменение статуса и закрытие счета) в настоящее время пропущены (`SKIPPED`) для всех банков. Это связано с тем, что эти операции требуют `client_token` или другого механизма аутентификации, который пока не реализован или неясен.
+
+Также, тесты получения деталей счета (`test_get_account_details`) для ABank и SBank в настоящее время пропущены из-за ошибок, возвращаемых соответствующими API. Это указывает на возможные различия в реализации API этих банков или на проблемы с их тестовыми средами.

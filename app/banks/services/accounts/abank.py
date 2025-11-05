@@ -1,4 +1,5 @@
 import httpx
+import json
 
 from app.banks.services.accounts.base import BaseAccountsService
 from app.core.config import settings
@@ -16,8 +17,8 @@ class ABankAccountsService(BaseAccountsService):
         Получает список счетов пользователя из ABank.
         Требует `access_token` и `consent_id` с разрешением `ReadAccountsDetail`.
         """
-        response = await self.client.get(
-            f"{self.api_url}/accounts",
+        response = await self._client._async_client.get(
+            f"{self._client.api_url}/accounts",
             headers={
                 "Authorization": f"Bearer {access_token}",
                 "X-Requesting-Bank": settings.CLIENT_ID,
@@ -37,8 +38,8 @@ class ABankAccountsService(BaseAccountsService):
         Получает балансы для конкретного счета из ABank.
         Требует `access_token` и `consent_id` с разрешением `ReadBalances`.
         """
-        response = await self.client.get(
-            f"{self.api_url}/accounts/{account_id}/balances",
+        response = await self._client._async_client.get(
+            f"{self._client.api_url}/accounts/{account_id}/balances",
             headers={
                 "Authorization": f"Bearer {access_token}",
                 "X-Requesting-Bank": settings.CLIENT_ID,
@@ -58,8 +59,8 @@ class ABankAccountsService(BaseAccountsService):
         Получает историю транзакций для конкретного счета из ABank.
         Требует `access_token` и `consent_id` с разрешением `ReadTransactionsDetail`.
         """
-        response = await self.client.get(
-            f"{self.api_url}/accounts/{account_id}/transactions",
+        response = await self._client._async_client.get(
+            f"{self._client.api_url}/accounts/{account_id}/transactions",
             headers={
                 "Authorization": f"Bearer {access_token}",
                 "X-Requesting-Bank": settings.CLIENT_ID,
@@ -77,6 +78,35 @@ class ABankAccountsService(BaseAccountsService):
     async def get_account_details(self, access_token: str, consent_id: str, user_id: str, account_id: str) -> dict:
         """
         Получает детальную информацию о конкретном счете из ABank.
-        На данный момент не реализовано.
+        Требует `access_token` и `consent_id` с разрешением `ReadAccountsDetail`.
         """
-        raise NotImplementedError("Метод get_account_details не реализован для ABank")
+        response = await self._client._async_client.get(
+            f"{self._client.api_url}/accounts/{account_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID,
+                "X-Consent-Id": consent_id
+            },
+            params={"client_id": user_id}
+        )
+        # Проверяем статус ответа до парсинга JSON
+        if response.status_code >= 400:
+            # Если есть ошибка, логируем текст ответа и поднимаем исключение
+            print(f"DEBUG: Ошибка от ABank API для get_account_details: {response.status_code} - {response.text}")
+            response.raise_for_status() # Это вызовет httpx.HTTPStatusError
+        
+        try:
+            response_data = response.json()
+            print(f"DEBUG: Распарсенный ответ от ABank API для get_account_details: {response_data}")
+        except json.JSONDecodeError:
+            raise ValueError(f"Не удалось распарсить JSON ответ от ABank API: {response.text}")
+
+        if "data" not in response_data or "account" not in response_data["data"]:
+            raise ValueError(f"Неожиданная структура ответа от ABank при получении деталей счета: {response_data}")
+        
+        if isinstance(response_data["data"]["account"], list) and len(response_data["data"]["account"]) > 0:
+            return response_data["data"]["account"][0]
+        elif isinstance(response_data["data"]["account"], dict):
+            return response_data["data"]["account"]
+        else:
+            raise ValueError(f"Неожиданный формат данных счета в ответе от ABank: {response_data['data']['account']}")
