@@ -91,13 +91,10 @@ class ABankAccountsService(BaseAccountsService):
         )
         # Проверяем статус ответа до парсинга JSON
         if response.status_code >= 400:
-            # Если есть ошибка, логируем текст ответа и поднимаем исключение
-            print(f"DEBUG: Ошибка от ABank API для get_account_details: {response.status_code} - {response.text}")
             response.raise_for_status() # Это вызовет httpx.HTTPStatusError
         
         try:
             response_data = response.json()
-            print(f"DEBUG: Распарсенный ответ от ABank API для get_account_details: {response_data}")
         except json.JSONDecodeError:
             raise ValueError(f"Не удалось распарсить JSON ответ от ABank API: {response.text}")
 
