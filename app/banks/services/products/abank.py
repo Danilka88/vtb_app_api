@@ -16,7 +16,18 @@ class ABankProductsService(BaseProductsService):
             headers={"Authorization": f"Bearer {access_token}"}
         )
         response.raise_for_status()
-        return [Product(**p) for p in response.json().get("data", [])]
+        products_data = response.json()
+        # Проверяем, что 'data' и 'product' существуют и являются списками
+        if isinstance(products_data, dict) and "data" in products_data and \
+           isinstance(products_data["data"], dict) and "product" in products_data["data"] and \
+           isinstance(products_data["data"]["product"], list):
+            products_list = products_data["data"]["product"]
+        elif isinstance(products_data, list):
+            products_list = products_data
+        else:
+            products_list = []
+
+        return [Product(**p) for p in products_list if isinstance(p, dict)]
 
     async def get_product_details(self, access_token: str, product_id: str) -> Product:
         response = await self.client.get(
