@@ -99,7 +99,7 @@ class MCPService:
             tasks.append(self._execute_bank_operation(
                 bank_name,
                 user_id,
-                lambda client, token: client.accounts.get_accounts(token, consent_id, user_id) if consent_id else asyncio.sleep(0) and _raise_consent_error(bank_name)
+                lambda client, token, current_bank_name=bank_name: client.accounts.get_accounts(token, consent_id, user_id) if consent_id else _raise_consent_error(current_bank_name)
             ))
         results = await asyncio.gather(*tasks)
         return results
