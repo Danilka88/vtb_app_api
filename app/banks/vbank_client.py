@@ -5,6 +5,8 @@ from app.banks.base_client import BaseBankClient
 from app.core.config import settings
 from app.banks.services.accounts.vbank import VBankAccountsService
 from app.banks.services.payments.vbank import VBankPaymentsService
+from app.banks.services.products.vbank import VBankProductsService
+from app.banks.services.products.base import BaseProductsService
 
 
 class VBankClient(BaseBankClient):
@@ -18,6 +20,7 @@ class VBankClient(BaseBankClient):
         # Инициализация специфичных для VBank сервисов
         self._accounts_service = VBankAccountsService(self)
         self._payments_service = VBankPaymentsService(self)
+        self._products_service = VBankProductsService(self)
 
     async def get_bank_token(self) -> dict:
         """
@@ -180,3 +183,61 @@ class VBankClient(BaseBankClient):
         Возвращает сервис для работы с платежами VBank.
         """ 
         return self._payments_service
+
+    @property
+    def products(self) -> BaseProductsService:
+        """
+        Возвращает сервис для работы с продуктами VBank.
+        """
+        return self._products_service
+
+    async def create_product_agreement_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
+        """
+        Создает согласие на управление договорами для VBank.
+        """
+        json_payload = {
+            "permissions": ["ReadProductAgreements"], # Упрощаем для отладки 422
+            "client_id": user_id,
+            "expiration_date": (datetime.now(timezone.utc) + timedelta(days=365)).isoformat(timespec='seconds') + 'Z'
+        }
+        response = await self._async_client.post(
+            f"{self.api_url}/product-agreement-consents/request",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID,
+                "Content-Type": "application/json"
+            },
+            json=json_payload
+        )
+        response.raise_for_status()
+        return response.json()["consent_id"]
+
+    async def get_product_agreement_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Получает информацию о согласии на управление договорами по его ID.
+        """
+        response = await self._async_client.get(
+            f"{self.api_url}/product-agreement-consents/{consent_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def revoke_product_agreement_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Отзывает согласие на управление договорами по его ID.
+        """
+        response = await self._async_client.delete(
+            f"{self.api_url}/product-agreement-consents/{consent_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status()
+        return {"status": "success", "message": f"Consent {consent_id} revoked."}

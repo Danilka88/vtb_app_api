@@ -5,6 +5,7 @@ from app.core.config import settings
 
 from app.banks.services.accounts.base import BaseAccountsService
 from app.banks.services.payments.base import BasePaymentsService
+from app.banks.services.products.base import BaseProductsService
 
 
 class BaseBankClient(ABC):
@@ -59,6 +60,27 @@ class BaseBankClient(ABC):
         """
         pass
 
+    @abstractmethod
+    async def create_product_agreement_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
+        """
+        Абстрактный метод для создания согласия на управление договорами.
+        """
+        pass
+
+    @abstractmethod
+    async def get_product_agreement_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Абстрактный метод для получения информации о согласии на управление договорами.
+        """
+        pass
+
+    @abstractmethod
+    async def revoke_product_agreement_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Абстрактный метод для отзыва согласия на управление договорами.
+        """
+        pass
+
     @property
     @abstractmethod
     def accounts(self) -> BaseAccountsService:
@@ -73,6 +95,15 @@ class BaseBankClient(ABC):
     def payments(self) -> BasePaymentsService:
         """
         Абстрактное свойство, возвращающее сервис для работы с платежами банка.
+        Должно быть реализовано в классах-наследниках.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def products(self) -> BaseProductsService:
+        """
+        Абстрактное свойство, возвращающее сервис для работы с продуктами банка.
         Должно быть реализовано в классах-наследниках.
         """
         pass

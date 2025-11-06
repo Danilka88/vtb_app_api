@@ -115,6 +115,7 @@ PYTHONPATH=. pytest -sv tests/
 - **VBank & ABank:**
   - **Платежи:** Создание платежа возвращает ошибку `403 Forbidden` с сообщением о несоответствии суммы, даже если суммы идентичны. Это **вероятный баг "песочницы"** данных банков.
   - **Управление платежными согласиями:** Попытки получить (`GET`) или отозвать (`DELETE`) созданное платежное согласие приводят к ошибке `401 Unauthorized`. Это с высокой вероятностью указывает на **требование mTLS** для этих эндпоинтов.
+  - **Управление согласиями на продукты:** Создание согласия на управление договорами продуктов (`POST /product-agreement-consents/request`) постоянно возвращает ошибку `422 Unprocessable Entity`. Это **вероятный баг "песочницы"** или недокументированные требования API.
 
 - **SBank:**
   - **Любые согласия:** Создание любого типа согласия требует **ручного подтверждения** со стороны пользователя. API возвращает статус `pending`. Это делает невозможным проведение автоматических сквозных тестов.
@@ -146,3 +147,15 @@ PYTHONPATH=. pytest -sv tests/
 - `GET /api/v1/payments/{bank_name}/{id}/status`: Получение статуса платежа.
 - `GET /api/v1/payments/payment-consents/{id}`: Получение информации о согласии на **платеж**.
 - `DELETE /api/v1/payments/payment-consents/{id}`: Отзыв согласия на **платеж**.
+
+### Продукты
+
+- `GET /api/v1/products/products`: Получение каталога банковских продуктов.
+- `GET /api/v1/products/products/{product_id}`: Получение деталей продукта.
+- `POST /api/v1/products/product-agreement-consents/request`: Создание согласия на управление договорами продуктов.
+- `GET /api/v1/products/product-agreement-consents/{consent_id}`: Получение деталей согласия на управление договорами продуктов.
+- `DELETE /api/v1/products/product-agreement-consents/{consent_id}`: Отзыв согласия на управление договорами продуктов.
+- `GET /api/v1/products/product-agreements`: Получение списка договоров клиента по продуктам.
+- `POST /api/v1/products/product-agreements`: Открытие нового продукта (создание договора).
+- `GET /api/v1/products/product-agreements/{agreement_id}`: Получение деталей конкретного договора по продукту.
+- `DELETE /api/v1/products/product-agreements/{agreement_id}`: Закрытие (расторжение) договора по продукту.

@@ -7,6 +7,8 @@ from app.core.config import settings
 
 from app.banks.services.accounts.sbank import SBankAccountsService
 from app.banks.services.payments.sbank import SBankPaymentsService
+from app.banks.services.products.sbank import SBankProductsService
+from app.banks.services.products.base import BaseProductsService
 
 
 class SBankClient(BaseBankClient):
@@ -18,6 +20,7 @@ class SBankClient(BaseBankClient):
         super().__init__(client_id, client_secret, api_url)
         self._accounts_service = SBankAccountsService(self)
         self._payments_service = SBankPaymentsService(self)
+        self._products_service = SBankProductsService(self)
 
     async def get_bank_token(self) -> dict:
         """
@@ -74,6 +77,70 @@ class SBankClient(BaseBankClient):
         Возвращает сервис для работы с платежами SBank.
         """
         return self._payments_service
+
+    @property
+    def products(self) -> BaseProductsService:
+        """
+        Возвращает сервис для работы с продуктами SBank.
+        """
+        return self._products_service
+
+    async def create_product_agreement_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
+        """
+        Создает согласие на управление договорами для SBank.
+        """
+        response = await self._async_client.post(
+            f"{self.api_url}/product-agreement-consents/request",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID,
+                "Content-Type": "application/json"
+            },
+            json={
+                "permissions": permissions,
+                "client_id": user_id
+            }
+        )
+        response.raise_for_status()
+        # Учитывая поведение SBank, может потребоваться ручное одобрение
+        consent_data = response.json()
+        consent_id = consent_data.get("consent_id")
+        if not consent_id:
+            # Логируем, но не падаем, если consent_id отсутствует сразу
+            print(f"SBank consent requires manual approval: {consent_data}")
+            # В зависимости от требований, можно вернуть request_id или другой идентификатор
+            return consent_data.get("request_id") # или выбросить исключение
+        return consent_id
+
+    async def get_product_agreement_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Получает информацию о согласии на управление договорами по его ID.
+        """
+        response = await self._async_client.get(
+            f"{self.api_url}/product-agreement-consents/{consent_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def revoke_product_agreement_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Отзывает согласие на управление договорами по его ID.
+        """
+        response = await self._async_client.delete(
+            f"{self.api_url}/product-agreement-consents/{consent_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status()
+        return {"status": "success", "message": f"Consent {consent_id} revoked."}
 
     async def create_payment_consent(self, access_token: str, permissions: list[str], user_id: str, requesting_bank: str, debtor_account_id: str, amount: str, currency: str = "RUB") -> str:
         """
