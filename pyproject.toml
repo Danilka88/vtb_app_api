@@ -64,3 +64,8 @@ dependencies = [
     "pygments",
     "iniconfig",
 ]
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore:.*AgentStatePydantic has been moved to `langchain.agents`.*",
+]
