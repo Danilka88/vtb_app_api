@@ -5,7 +5,7 @@ import httpx
 
 from app.core.config import settings
 from app.db import crud
-from app.db.database import SessionLocal
+from app.db.database import get_db
 from app.utils.bank_clients import get_bank_client
 from app.schemas.account import AccountCreateRequest, AccountDetailsRequest, AccountStatusUpdateRequest, AccountCloseRequest
 
@@ -39,17 +39,6 @@ class TransactionsRequest(BaseModel):
     user_id: str # Идентификатор пользователя, для которого запрашиваются транзакции
 
 
-def get_db():
-    """
-    Зависимость FastAPI для получения сессии базы данных.
-    Создает новую сессию для каждого запроса и автоматически закрывает ее после завершения.
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 
 @router.post("/accounts")
 async def create_account(request: AccountCreateRequest, bank_name: str = Query(..., description="Название банка (например, 'vbank')"), db: Session = Depends(get_db)):
@@ -78,7 +67,7 @@ async def create_account(request: AccountCreateRequest, bank_name: str = Query(.
         raise HTTPException(status_code=500, detail=f"Произошла непредвиденная ошибка при создании счета для банка {bank_name}: {e}")
 
 
-@router.post("/accounts")
+@router.post("/accounts/list")
 async def get_accounts(request: AccountsRequest, db: Session = Depends(get_db)):
     """
     Получает список счетов для указанного банка, используя предоставленный `consent_id`.

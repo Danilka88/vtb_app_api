@@ -15,3 +15,15 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Базовый класс для декларативных моделей SQLAlchemy.
 Base = declarative_base()
+
+
+def get_db():
+    """
+    Зависимость FastAPI для получения сессии базы данных.
+    Создает новую сессию для каждого запроса и автоматически закрывает ее после завершения.
+    """
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

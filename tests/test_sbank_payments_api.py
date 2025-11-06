@@ -1,115 +1,166 @@
 import pytest
 from fastapi.testclient import TestClient
-from main import app
-from app.core.config import settings
+import uuid
 
-client = TestClient(app)
+# Используем USER_ID из настроек для тестов
+USER_ID = "team042-1"
 
-# Используем USER_ID для тестов SBank
-USER_ID = "team042-3" # Используем другой user_id для SBank
 
-# Глобальная переменная для хранения ID счета дебитора
-DEBTOR_ACCOUNT_ID = None
-
-def test_init_bank_tokens():
+@pytest.mark.skip(reason="SBank требует ручного подтверждения согласия, что делает автоматическое тестирование невозможным")
+class TestSBankPaymentWorkflow:
     """
-    Тест для проверки инициализации банковских токенов для SBank.
+    Класс, объединяющий все тесты для полного сквозного сценария 
+    взаимодействия с платежным API SBank. 
+    Тесты выполняются в порядке их определения в классе.
     """
-    print("\n--- Шаг 0: Инициализация банковских токенов для SBank ---")
-    response = client.post("/api/v1/auth/init-bank-tokens")
-    print(f"Статус ответа: {response.status_code}")
-    print(f"Тело ответа: {response.json()}")
-    assert response.status_code == 200, f"Ошибка при инициализации банковских токенов: {response.text}"
-    print("Токены банков успешно инициализированы.")
+    # Глобальные переменные для хранения ID между тестами
+    debtor_account_id: str | None = None
+    payment_consent_id: str | None = None
+    payment_id: str | None = None
 
+    def test_0_init_bank_tokens(self, client: TestClient):
+        """
+        Шаг 0: Инициализация банковских токенов.
+        """
+        print("\n--- Шаг 0: Инициализация банковских токенов ---")
+        response = client.post("/api/v1/auth/init-bank-tokens")
+        assert response.status_code == 200, f"Ошибка при инициализации банковских токенов: {response.text}"
+        print("Токены банков успешно инициализированы.")
 
-def test_consent_management_flow():
-    """
-    Тест для проверки полного цикла управления согласиями (создание, получение, отзыв) для SBank.
-    """
-    print("\n--- Шаг 1: Управление согласиями для SBank ---")
+    def test_1_get_debtor_account(self, client: TestClient):
+        """
+        Шаг 1: Получение реального счета для списания (счет дебитора).
+        """
+        print("\n--- Шаг 1: Получение счета дебитора (Sbank) ---")
 
-    # 1. Создание согласия
-    print("\n1.1. Создание согласия на доступ к счету для SBank...")
-    consent_request = {
-        "bank_name": "sbank",
-        "user_id": USER_ID,
-        "permissions": [
-            "ReadAccountsDetail",
-            "ReadBalances"
-        ]
-    }
-    response_create = client.post("/api/v1/auth/create-consent", json=consent_request)
-    print(f"Статус ответа (создание): {response_create.status_code}")
-    print(f"Тело ответа (создание): {response_create.json()}")
-    assert response_create.status_code == 200, f"Ошибка при создании согласия: {response_create.text}"
-    consent_id = response_create.json().get("consent_id")
-    assert consent_id is None, "Consent ID должен быть None для SBank до ручного подтверждения"
-    print("Согласие успешно создано, Consent ID ожидаемо None.")
+        # 1.1 Создание согласия на доступ к счетам
+        print("\n1.1. Создание согласия на доступ к счетам...")
+        consent_request = {
+            "bank_name": "sbank",
+            "user_id": USER_ID,
+            "permissions": ["ReadAccountsDetail"]
+        }
+        response_create = client.post("/api/v1/auth/create-consent", json=consent_request)
+        assert response_create.status_code == 200, f"Ошибка при создании согласия на доступ к счетам: {response_create.text}"
+        consent_id = response_create.json().get("consent_id")
+        assert consent_id, "Account Consent ID не найден в ответе"
+        print(f"Согласие на доступ к счетам успешно создано. Consent ID: {consent_id}")
 
-    # 2. Получение согласия по ID (ожидаем ошибку, так как consent_id = None)
-    print(f"\n1.2. Попытка получения деталей согласия по ID: {consent_id} для SBank (ожидаем ошибку)...")
-    response_get = client.get(f"/api/v1/auth/consents/{consent_id}?bank_name=sbank&user_id={USER_ID}")
-    print(f"Статус ответа (получение): {response_get.status_code}")
-    print(f"Тело ответа (получение): {response_get.json()}")
-    assert response_get.status_code == 404, f"Ожидалась ошибка 404, получено: {response_get.status_code}"
-    assert "Consent not found" in response_get.json().get("detail") or "Согласие не найдено" in response_get.json().get("detail"), "Сообщение об ошибке не соответствует ожидаемому"
-    print("Попытка получения деталей согласия для SBank успешно вернула 404 (Consent not found).")
+        # 1.2 Получение списка счетов
+        print("\n1.2. Получение списка счетов...")
+        accounts_request = {
+            "bank_name": "sbank",
+            "consent_id": consent_id,
+            "user_id": USER_ID
+        }
+        response_accounts = client.post("/api/v1/data/accounts/list", json=accounts_request)
+        assert response_accounts.status_code == 200, f"Ошибка при получении счетов: {response_accounts.text}"
+        accounts = response_accounts.json().get("accounts")
+        assert accounts and len(accounts) > 0, "Список счетов пуст или не найден"
 
-    # 3. Отзыв согласия (ожидаем ошибку, так как consent_id = None)
-    print(f"\n1.3. Попытка отзыва согласия по ID: {consent_id} для SBank (ожидаем ошибку)...")
-    response_revoke = client.delete(f"/api/v1/auth/consents/{consent_id}?bank_name=sbank&user_id={USER_ID}")
-    print(f"Статус ответа (отзыв): {response_revoke.status_code}")
-    print(f"Тело ответа (отзыв): {response_revoke.json()}")
-    assert response_revoke.status_code == 404, f"Ожидалась ошибка 404, получено: {response_revoke.status_code}"
-    assert "Consent not found" in response_revoke.json().get("detail") or "Согласие не найдено" in response_revoke.json().get("detail"), "Сообщение об ошибке не соответствует ожидаемому"
-    print("Попытка отзыва согласия для SBank успешно вернула 404 (Consent not found).")
+        # Выбираем первый счет и сохраняем его ID
+        TestSBankPaymentWorkflow.debtor_account_id = accounts[0].get("accountId")
+        assert self.debtor_account_id, "AccountId не найден в первом счете"
+        print(f"Получен счет дебитора: {self.debtor_account_id}")
 
+        # 1.3 Отзыв согласия после использования
+        print(f"\n1.3. Отзыв согласия на доступ к счетам (ID: {consent_id})...")
+        response_revoke = client.delete(f"/api/v1/auth/consents/{consent_id}?bank_name=sbank&user_id={USER_ID}")
+        assert response_revoke.status_code == 200, f"Ошибка при отзыве согласия: {response_revoke.text}"
+        print("Согласие на доступ к счетам успешно отозвано.")
 
-def test_get_debtor_account():
-    """
-    Тест для получения реального счета для списания для SBank.
-    """
-    global DEBTOR_ACCOUNT_ID
-    print("\n--- Шаг 2: Получение реального счета для списания для SBank ---")
+    def test_2_payment_consent_workflow(self, client: TestClient):
+        """
+        Шаг 2: Создание и проверка ПЛАТЕЖНОГО согласия.
+        """
+        assert self.debtor_account_id, "Не удалось получить ID счета дебитора на предыдущем шаге."
+        print("\n--- Шаг 2: Управление платежным согласием (Sbank) ---")
 
-    # 1. Создание согласия на доступ к счетам
-    print("\n2.1. Создание согласия на доступ к счетам для SBank...")
-    consent_request = {
-        "bank_name": "sbank",
-        "user_id": USER_ID,
-        "permissions": [
-            "ReadAccountsDetail",
-            "ReadBalances"
-        ]
-    }
-    response_create = client.post("/api/v1/auth/create-consent", json=consent_request)
-    print(f"Статус ответа (создание согласия): {response_create.status_code}")
-    print(f"Тело ответа (создание согласия): {response_create.json()}")
-    assert response_create.status_code == 200, f"Ошибка при создании согласия: {response_create.text}"
-    consent_id = response_create.json().get("consent_id")
-    assert consent_id is None, "Consent ID должен быть None для SBank до ручного подтверждения"
-    print("Согласие на доступ к счетам успешно создано, Consent ID ожидаемо None.")
+        # 2.1 Создание платежного согласия
+        print("\n2.1. Создание платежного согласия...")
+        consent_request = {
+            "bank_name": "sbank",
+            "user_id": USER_ID,
+            "permissions": ["CreateDomesticSinglePayment"],
+            "debtor_account": self.debtor_account_id,
+            "amount": "1.00"
+        }
+        response_create = client.post("/api/v1/payments/payment-consents", json=consent_request)
+        assert response_create.status_code == 200, f"Ошибка при создании платежного согласия: {response_create.text}"
+        TestSBankPaymentWorkflow.payment_consent_id = response_create.json().get("consent_id")
+        assert self.payment_consent_id, "Payment Consent ID не найден в ответе"
+        print(f"Платежное согласие успешно создано. Consent ID: {self.payment_consent_id}")
 
-    # 2. Получение списка счетов (ожидаем ошибку, так как consent_id = None)
-    print("\n2.2. Попытка получения списка счетов для SBank (ожидаем ошибку)...")
-    accounts_request = {
-        "bank_name": "sbank",
-        "consent_id": consent_id,
-        "user_id": USER_ID
-    }
-    response_accounts = client.post("/api/v1/data/accounts", json=accounts_request)
-    print(f"Статус ответа (получение счетов): {response_accounts.status_code}")
-    print(f"Тело ответа (получение счетов): {response_accounts.json()}")
-    assert response_accounts.status_code == 422, f"Ожидалась ошибка 422, получено: {response_accounts.status_code}"
-    assert "Input should be a valid string" in response_accounts.json().get("detail")[0].get("msg"), "Сообщение об ошибке не соответствует ожидаемому"
-    print("Попытка получения списка счетов для SBank успешно вернула 422 (Unprocessable Entity).")
+        # 2.2 Получение созданного согласия по ID для проверки
+        print(f"\n2.2. Получение деталей платежного согласия по ID: {self.payment_consent_id}...")
+        response_get = client.get(f"/api/v1/payments/payment-consents/{self.payment_consent_id}?bank_name=sbank&user_id={USER_ID}")
+        assert response_get.status_code == 200, f"Ошибка при получении платежного согласия: {response_get.text}"
+        retrieved_id = response_get.json().get("details", {}).get("data", {}).get("consentId")
+        assert retrieved_id == self.payment_consent_id, f"Ожидался Consent ID {self.payment_consent_id}, но получен {retrieved_id}"
+        print("Детали платежного согласия успешно получены.")
 
-    # Отзыв согласия после использования (ожидаем ошибку, так как consent_id = None)
-    print(f"\n2.3. Попытка отзыва согласия на доступ к счетам по ID: {consent_id} для SBank (ожидаем ошибку)...")
-    response_revoke = client.delete(f"/api/v1/auth/consents/{consent_id}?bank_name=sbank&user_id={USER_ID}")
-    print(f"Статус ответа (отзыв согласия): {response_revoke.status_code}")
-    print(f"Тело ответа (отзыв согласия): {response_revoke.json()}")
-    assert response_revoke.status_code == 404, f"Ожидалась ошибка 404, получено: {response_revoke.status_code}"
-    assert "Consent not found" in response_revoke.json().get("detail") or "Согласие не найдено" in response_revoke.json().get("detail"), "Сообщение об ошибке не соответствует ожидаемому"
-    print("Попытка отзыва согласия для SBank успешно вернула 404 (Consent not found).")
+    def test_3_payment_workflow(self, client: TestClient):
+        """
+        Шаг 3: Создание и проверка статуса платежа.
+        """
+        assert self.debtor_account_id, "Не удалось получить ID счета дебитора."
+        assert self.payment_consent_id, "Не удалось получить ID платежного согласия."
+        print("\n--- Шаг 3: Создание и проверка статуса платежа (Sbank) ---")
+
+        # 3.1 Создание платежа
+        print("\n3.1. Инициирование платежа...")
+        instruction_id = str(uuid.uuid4())
+        e2e_id = str(uuid.uuid4())
+        
+        payment_request_body = {
+            "Data": {
+                "Initiation": {
+                    "InstructionIdentification": instruction_id,
+                    "EndToEndIdentification": e2e_id,
+                    "InstructedAmount": {"Amount": "1.00", "Currency": "RUB"},
+                    "DebtorAccount": {"schemeName": "RU.CBR.Account", "identification": self.debtor_account_id},
+                    "CreditorAccount": {"schemeName": "RU.CBR.Account", "identification": "40817810100000000001", "Name": "Test Creditor"}
+                }
+            },
+            "Risk": {}
+        }
+        response_payment = client.post(
+            f"/api/v1/payments/sbank/create",
+            headers={"X-Consent-Id": self.payment_consent_id},
+            json=payment_request_body
+        )
+        assert response_payment.status_code == 200, f"Ошибка при создании платежа: {response_payment.text}"
+        details = response_payment.json().get("details", {})
+        TestSBankPaymentWorkflow.payment_id = details.get("paymentId") or details.get("data", {}).get("paymentId")
+        assert self.payment_id, "Payment ID не найден в ответе"
+        print(f"Платеж успешно создан. Payment ID: {self.payment_id}")
+
+        # 3.2 Получение статуса платежа
+        print(f"\n3.2. Получение статуса платежа {self.payment_id}...")
+        response_status = client.get(
+            f"/api/v1/payments/sbank/{self.payment_id}/status",
+            params={"client_id": USER_ID}
+        )
+        assert response_status.status_code == 200, f"Ошибка при получении статуса платежа: {response_status.text}"
+        retrieved_payment_id = response_status.json().get("details", {}).get("data", {}).get("paymentId")
+        assert retrieved_payment_id == self.payment_id, f"Ожидался Payment ID {self.payment_id}, но получен {retrieved_payment_id}"
+        print(f"Статус платежа {self.payment_id} успешно получен.")
+
+    def test_4_revoke_payment_consent(self, client: TestClient):
+        """
+        Шаг 4: Отзыв платежного согласия и проверка его недоступности.
+        """
+        assert self.payment_consent_id, "Не удалось получить ID платежного согласия."
+        print("\n--- Шаг 4: Отзыв платежного согласия (Sbank) ---")
+
+        # 4.1 Отзыв согласия
+        print(f"\n4.1. Отзыв платежного согласия по ID: {self.payment_consent_id}...")
+        response_revoke = client.delete(f"/api/v1/payments/payment-consents/{self.payment_consent_id}?bank_name=sbank&user_id={USER_ID}")
+        assert response_revoke.status_code == 200, f"Ошибка при отзыве платежного согласия: {response_revoke.text}"
+        print("Платежное согласие успешно отозвано.")
+
+        # 4.2 Проверка недоступности отозванного согласия
+        print(f"\n4.2. Проверка недоступности отозванного согласия ID: {self.payment_consent_id}...")
+        response_get_revoked = client.get(f"/api/v1/payments/payment-consents/{self.payment_consent_id}?bank_name=sbank&user_id={USER_ID}")
+        assert response_get_revoked.status_code in [400, 404], "Отозванное согласие должно возвращать ошибку клиента (400 или 404)"
+        print("Отозванное согласие не найдено, как и ожидалось.")

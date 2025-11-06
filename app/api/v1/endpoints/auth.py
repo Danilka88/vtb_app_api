@@ -5,7 +5,7 @@ import httpx
 
 from app.core.config import settings
 from app.db import crud
-from app.db.database import SessionLocal
+from app.db.database import get_db
 from app.banks.vbank_client import VBankClient
 from app.banks.abank_client import ABankClient
 from app.banks.sbank_client import SBankClient
@@ -39,18 +39,6 @@ class ConsentRequest(BaseModel):
     transaction_from_date: str | None = None
     transaction_to_date: str | None = None
 
-
-# Dependency
-def get_db():
-    """
-    Зависимость FastAPI для получения сессии базы данных.
-    Создает новую сессию для каждого запроса и автоматически закрывает ее после завершения.
-    """
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/init-bank-tokens")
@@ -119,7 +107,7 @@ async def create_consent(request: ConsentRequest, db: Session = Depends(get_db))
             # Для платежного согласия требуются debtor_account и amount
             if not request.debtor_account or not request.amount:
                 raise HTTPException(status_code=400, detail="Для платежного согласия требуются 'debtor_account' и 'amount'.")
-            consent_id = await bank_client.create_payment_consent(access_token, permissions, user_id, settings.CLIENT_ID, request.debtor_account, request.amount)
+            consent_id = await bank_client.create_payment_consent(access_token, permissions, user_id, settings.CLIENT_ID, request.debtor_account, request.amount, currency="RUB")
         else:
             # Создание согласия на доступ к данным
             consent_id = await bank_client.create_consent(access_token, permissions, user_id)

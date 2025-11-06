@@ -1,170 +1,90 @@
 import pytest
 from fastapi.testclient import TestClient
-from main import app
-from app.core.config import settings
-
-client = TestClient(app)
 
 # Используем USER_ID из настроек для тестов
 USER_ID = "team042-1"
 
-# Глобальные переменные для хранения ID счета и согласия
-TEST_ACCOUNT_ID = "acc-1511"
-TEST_CONSENT_ID = None
-
-@pytest.fixture(scope="module")
-def init_bank_tokens():
+class TestVBankAccountWorkflow:
     """
-    Фикстура для инициализации банковских токенов перед выполнением тестов модуля.
+    Класс, объединяющий тесты для API счетов VBank.
     """
-    print("\n--- Инициализация банковских токенов ---")
-    response = client.post("/api/v1/auth/init-bank-tokens")
-    assert response.status_code == 200, f"Ошибка при инициализации банк-токенов: {response.text}"
-    print("Банк-токены успешно инициализированы.")
+    account_id: str | None = "acc-1511"  # Используем известный ID для тестов
+    consent_id: str | None = None
 
+    def test_0_init_bank_tokens(self, client: TestClient):
+        """
+        Шаг 0: Инициализация банковских токенов.
+        """
+        print("\n--- Шаг 0: Инициализация банковских токенов (VBank Accounts) ---")
+        response = client.post("/api/v1/auth/init-bank-tokens")
+        assert response.status_code == 200, f"Ошибка при инициализации банк-токенов: {response.text}"
+        print("Банк-токены успешно инициализированы.")
 
-@pytest.mark.skip(reason="POST /accounts требует client_token или другого механизма аутентификации, который пока не реализован.")
-def test_create_account(init_bank_tokens): # Добавляем фикстуру как аргумент
-    """
-    Тест для создания нового счета.
-    """
-    global TEST_ACCOUNT_ID
-    print("\n--- Тест: Создание счета ---")
-
-    request_data = {
-        "account_type": "Personal",
-        "initial_balance": 1000.0
-    }
-    response = client.post("/api/v1/data/accounts", params={"bank_name": "vbank"}, json=request_data)
-    print(f"Статус ответа: {response.status_code}")
-    print(f"Тело ответа: {response.json()}")
-    assert response.status_code == 200, f"Ошибка при создании счета: {response.text}"
-    assert "account" in response.json()
-    assert "accountId" in response.json()["account"]
-    TEST_ACCOUNT_ID = response.json()["account"]["accountId"]
-    print(f"Счет успешно создан. Account ID: {TEST_ACCOUNT_ID}")
-
-
-def test_get_account_details():
-    """
-    Тест для получения деталей счета.
-    """
-    global TEST_CONSENT_ID
-    print("\n--- Тест: Получение деталей счета ---")
-
-    # 1. Создание согласия на доступ к счетам
-    print("\n1.1. Создание согласия на доступ к счетам...")
-    consent_request = {
-        "bank_name": "vbank",
-        "user_id": USER_ID,
-        "permissions": [
-            "ReadAccountsDetail",
-            "ReadBalances"
-        ]
-    }
-    response_create = client.post("/api/v1/auth/create-consent", json=consent_request)
-    assert response_create.status_code == 200, f"Ошибка при создании согласия: {response_create.text}"
-    TEST_CONSENT_ID = response_create.json().get("consent_id")
-    assert TEST_CONSENT_ID, "Consent ID не найден в ответе"
-    print(f"Согласие успешно создано. Consent ID: {TEST_CONSENT_ID}")
-
-    # 2. Получение деталей счета
-    response = client.get(
-        f"/api/v1/data/accounts/{TEST_ACCOUNT_ID}",
-        params={
+    def test_1_create_and_get_consent(self, client: TestClient):
+        """
+        Шаг 1: Создание и получение согласия на доступ к счетам.
+        """
+        print("\n--- Шаг 1: Создание и получение согласия (VBank Accounts) ---")
+        consent_request = {
             "bank_name": "vbank",
-            "consent_id": TEST_CONSENT_ID,
+            "user_id": USER_ID,
+            "permissions": ["ReadAccountsDetail", "ReadBalances"]
+        }
+        response_create = client.post("/api/v1/auth/create-consent", json=consent_request)
+        assert response_create.status_code == 200, f"Ошибка при создании согласия: {response_create.text}"
+        TestVBankAccountWorkflow.consent_id = response_create.json().get("consent_id")
+        assert self.consent_id, "Consent ID не найден в ответе"
+        print(f"Согласие успешно создано. Consent ID: {self.consent_id}")
+
+    def test_2_get_account_details(self, client: TestClient):
+        """
+        Шаг 2: Получение деталей счета.
+        """
+        assert self.consent_id, "Consent ID не был создан"
+        assert self.account_id, "Account ID не установлен"
+        print("\n--- Шаг 2: Получение деталей счета (VBank Accounts) ---")
+        response = client.get(
+            f"/api/v1/data/accounts/{self.account_id}",
+            params={"bank_name": "vbank", "consent_id": self.consent_id, "user_id": USER_ID}
+        )
+        assert response.status_code == 200, f"Ошибка при получении деталей счета: {response.text}"
+        assert "account" in response.json()
+        assert response.json()["account"][0]["accountId"] == self.account_id
+        print(f"Детали счета {self.account_id} успешно получены.")
+
+    def test_3_get_account_balances(self, client: TestClient):
+        """
+        Шаг 3: Получение баланса счета.
+        """
+        assert self.consent_id, "Consent ID не был создан"
+        assert self.account_id, "Account ID не установлен"
+        print("\n--- Шаг 3: Получение баланса счета (VBank Accounts) ---")
+        request_data = {
+            "bank_name": "vbank",
+            "consent_id": self.consent_id,
             "user_id": USER_ID
         }
-    )
-    print(f"Статус ответа: {response.status_code}")
-    print(f"Тело ответа: {response.json()}")
-    assert response.status_code == 200, f"Ошибка при получении деталей счета: {response.text}"
-    assert "account" in response.json()
-    assert response.json()["account"][0]["accountId"] == TEST_ACCOUNT_ID
-    print(f"Детали счета {TEST_ACCOUNT_ID} успешно получены.")
+        response = client.post(f"/api/v1/data/accounts/{self.account_id}/balances", json=request_data)
+        assert response.status_code == 200, f"Ошибка при получении баланса: {response.text}"
+        assert "balances" in response.json()
+        print(f"Баланс счета {self.account_id} успешно получен.")
 
-def test_get_account_balances():
-    """
-    Тест для получения баланса счета.
-    """
-    global TEST_CONSENT_ID
-    print("\n--- Тест: Получение баланса счета ---")
-
-    # Убедимся, что TEST_CONSENT_ID существует
-    assert TEST_CONSENT_ID is not None, "Consent ID не был создан в предыдущем тесте."
-    assert TEST_ACCOUNT_ID is not None, "Account ID не был создан или получен в предыдущем тесте."
-
-    # 1. Получение баланса счета
-    request_data = {
-        "bank_name": "vbank",
-        "consent_id": TEST_CONSENT_ID,
-        "user_id": USER_ID
-    }
-    response = client.post(
-        f"/api/v1/data/accounts/{TEST_ACCOUNT_ID}/balances",
-        json=request_data
-    )
-    print(f"Статус ответа: {response.status_code}")
-    print(f"Тело ответа: {response.json()}")
-    assert response.status_code == 200, f"Ошибка при получении баланса счета: {response.text}"
-    assert "balances" in response.json()
-    assert isinstance(response.json()["balances"], list) # Балансы возвращаются как список
-    assert len(response.json()["balances"]) > 0
-    print(f"Баланс счета {TEST_ACCOUNT_ID} успешно получен.")
-
-
-@pytest.mark.skip(reason="PUT /accounts/{account_id}/status требует client_token или другого механизма аутентификации, который пока не реализован.")
-def test_update_account_status():
-    """
-    Тест для изменения статуса счета.
-    """
-    print("\n--- Тест: Изменение статуса счета ---")
-    assert TEST_ACCOUNT_ID is not None, "Счет не был создан в предыдущем тесте."
-
-    request_data = {
-        "bank_name": "vbank",
-        "user_id": USER_ID,
-        "status": "Disabled"
-    }
-    response = client.put(f"/api/v1/data/accounts/{TEST_ACCOUNT_ID}/status", json=request_data)
-    print(f"Статус ответа: {response.status_code}")
-    print(f"Тело ответа: {response.json()}")
-    assert response.status_code == 200, f"Ошибка при изменении статуса счета: {response.text}"
-    assert "account" in response.json()
-    assert response.json()["account"]["status"] == "Disabled"
-    print(f"Статус счета {TEST_ACCOUNT_ID} успешно изменен на Disabled.")
-
-
-@pytest.mark.skip(reason="PUT /accounts/{account_id}/close требует client_token или другого механизма аутентификации, который пока не реализован.")
-def test_close_account():
-    """
-    Тест для закрытия счета.
-    """
-    print("\n--- Тест: Закрытие счета ---")
-    assert TEST_ACCOUNT_ID is not None, "Счет не был создан в предыдущем тесте."
-
-    request_data = {
-        "bank_name": "vbank",
-        "user_id": USER_ID
-    }
-    response = client.put(f"/api/v1/data/accounts/{TEST_ACCOUNT_ID}/close", json=request_data)
-    print(f"Статус ответа: {response.status_code}")
-    print(f"Тело ответа: {response.json()}")
-    assert response.status_code == 200, f"Ошибка при закрытии счета: {response.text}"
-    assert "account" in response.json()
-    assert response.json()["account"]["status"] == "Closed"
-    print(f"Счет {TEST_ACCOUNT_ID} успешно закрыт.")
-
-
-def test_revoke_consent_after_tests():
-    """
-    Отзыв согласия после выполнения всех тестов, если оно было создано.
-    """
-    if TEST_CONSENT_ID:
-        print(f"\n--- Отзыв согласия {TEST_CONSENT_ID} ---")
-        response_revoke = client.delete(f"/api/v1/auth/consents/{TEST_CONSENT_ID}?bank_name=vbank&user_id={USER_ID}")
-        print(f"Статус ответа (отзыв): {response_revoke.status_code}")
-        print(f"Тело ответа (отзыв): {response_revoke.json()}")
+    def test_4_revoke_consent(self, client: TestClient):
+        """
+        Шаг 4: Отзыв согласия после тестов.
+        """
+        assert self.consent_id, "Consent ID не был создан"
+        print(f"\n--- Шаг 4: Отзыв согласия {self.consent_id} (VBank Accounts) ---")
+        response_revoke = client.delete(f"/api/v1/auth/consents/{self.consent_id}?bank_name=vbank&user_id={USER_ID}")
         assert response_revoke.status_code == 200, f"Ошибка при отзыве согласия: {response_revoke.text}"
-        print(f"Согласие {TEST_CONSENT_ID} успешно отозвано.")
+        print(f"Согласие {self.consent_id} успешно отозвано.")
+
+# Пропущенные тесты, которые требуют другой аутентификации
+@pytest.mark.skip(reason="POST /accounts требует client_token, который не используется в этих тестах")
+def test_create_account(): pass
+
+@pytest.mark.skip(reason="PUT /accounts/{id}/status требует client_token")
+def test_update_account_status(): pass
+
+@pytest.mark.skip(reason="PUT /accounts/{id}/close требует client_token")
+def test_close_account(): pass

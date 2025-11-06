@@ -109,19 +109,85 @@ class PaymentRisk(BaseModel):
 
 class PaymentInitiationRequest(BaseModel):
 
+
+
     """
+
+
 
     Основная модель для запроса на инициацию разового платежа.
 
+
+
     Соответствует структуре запроса API банка.
+
+
 
     """
 
+
+
     data: PaymentData = Field(alias='Data') # Данные платежа
+
+
 
     risk: PaymentRisk = Field(alias='Risk') # Информация о рисках
 
+
+
     model_config = ConfigDict(populate_by_name=True)
+
+
+
+
+
+
+
+
+
+
+
+class PaymentConsentCreateRequest(BaseModel):
+
+
+
+    """
+
+
+
+    Модель запроса для создания нового согласия на оплату.
+
+
+
+    """
+
+
+
+    bank_name: str
+
+
+
+    user_id: str
+
+
+
+    permissions: list[str] = ["CreateDomesticSinglePayment"]
+
+
+
+    debtor_account: str
+
+
+
+    amount: str
+
+
+
+
+
+
+
+
 
 
 # --- Схемы для VRP ---

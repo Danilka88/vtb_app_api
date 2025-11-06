@@ -60,7 +60,6 @@ class VBankClient(BaseBankClient):
         return response.json()["consent_id"]
 
     async def create_payment_consent(self, access_token: str, permissions: list[str], user_id: str, requesting_bank: str, debtor_account_id: str, amount: str, currency: str = "RUB") -> str:
-        # DeprecationWarning: datetime.datetime.utcnow() is deprecated. Use datetime.datetime.now(datetime.UTC).
         """
         Создает платежное согласие для VBank.
         """
@@ -101,6 +100,46 @@ class VBankClient(BaseBankClient):
         )
         response.raise_for_status()
         return response.json()
+
+    async def get_payment_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Получает информацию о платежном согласии по его ID из VBank.
+        """
+        response = await self._async_client.get(
+            f"{self.api_url}/payment-consents/{consent_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def revoke_payment_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
+        """
+        Отзывает платежное согласие по его ID из VBank.
+        """
+        response = await self._async_client.delete(
+            f"{self.api_url}/payment-consents/{consent_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status()
+
+        if response.status_code == 204:
+            return {"status": "success", "message": "Payment consent revoked successfully (no content)"}
+        
+        if not response.text:
+            return {"status": "success", "message": "Payment consent revoked successfully (empty response)"}
+
+        try:
+            return response.json()
+        except Exception:
+            return {"status": "success", "message": "Payment consent revoked successfully (non-json response)"}
 
     async def revoke_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
         """
