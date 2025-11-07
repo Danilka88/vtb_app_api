@@ -11,15 +11,6 @@ class TestVBankAccountWorkflow:
     account_id: str | None = "acc-1511"  # Используем известный ID для тестов
     consent_id: str | None = None
 
-    def test_0_init_bank_tokens(self, client: TestClient):
-        """
-        Шаг 0: Инициализация банковских токенов.
-        """
-        print("\n--- Шаг 0: Инициализация банковских токенов (VBank Accounts) ---")
-        response = client.post("/api/v1/auth/init-bank-tokens")
-        assert response.status_code == 200, f"Ошибка при инициализации банк-токенов: {response.text}"
-        print("Банк-токены успешно инициализированы.")
-
     def test_1_create_and_get_consent(self, client: TestClient):
         """
         Шаг 1: Создание и получение согласия на доступ к счетам.

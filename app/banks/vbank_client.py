@@ -22,20 +22,6 @@ class VBankClient(BaseBankClient):
         self._payments_service = VBankPaymentsService(self)
         self._products_service = VBankProductsService(self)
 
-    async def get_bank_token(self) -> dict:
-        """
-        Получает банк-токен для VBank.
-        """
-        print(f"DEBUG: Запрос банк-токена для VBank. client_id: {self.client_id}")
-        response = await self._async_client.post(
-            f"{self.api_url}/auth/bank-token",
-            params={"client_id": self.client_id, "client_secret": self.client_secret}
-        )
-        response.raise_for_status()  # Вызывает исключение для плохих статусов HTTP
-        token_data = response.json()
-        print(f"DEBUG: Получен банк-токен для VBank: {token_data}")
-        return token_data
-
     async def create_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
         # DeprecationWarning: datetime.datetime.utcnow() is deprecated. Use datetime.datetime.now(datetime.UTC).
         """

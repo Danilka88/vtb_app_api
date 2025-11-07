@@ -1,9 +1,10 @@
 from typing import List, Optional, Any
 from sqlalchemy.orm import Session
-from app.db import crud
 from app.utils.bank_clients import get_bank_client
 from app.mcp.schemas import BankOperationResponse
 from app.core.config import settings
+from app.auth_manager.services import BaseAuthManager
+from app.auth_manager.exceptions import TokenFetchError
 import asyncio
 import httpx
 
@@ -12,8 +13,9 @@ class MCPService:
     Сервис для координации мультибанковых операций.
     Абстрагирует взаимодействие с отдельными банками и предоставляет унифицированный интерфейс.
     """
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, auth_manager: BaseAuthManager):
         self.db = db
+        self.auth_manager = auth_manager
 
     async def _execute_bank_operation(self, bank_name: str, user_id: str, operation_func) -> BankOperationResponse:
         """
@@ -21,23 +23,21 @@ class MCPService:
         Обрабатывает получение токена, вызов операции и обработку ошибок.
         """
         try:
+            access_token = await self.auth_manager.get_access_token(self.db, bank_name)
             bank_client = get_bank_client(bank_name)
-            # В будущем здесь будет логика получения access_token через OAuth
-            # Пока используем существующий crud.get_decrypted_token
-            access_token = crud.get_decrypted_token(self.db, bank_name)
-            if not access_token:
-                return BankOperationResponse(
-                    bank_name=bank_name,
-                    status="failed",
-                    message=f"Токен доступа для банка {bank_name} не найден.",
-                    error="TOKEN_NOT_FOUND"
-                )
             
             result = await operation_func(bank_client, access_token)
             return BankOperationResponse(
                 bank_name=bank_name,
                 status="success",
                 data=result
+            )
+        except TokenFetchError as e:
+            return BankOperationResponse(
+                bank_name=bank_name,
+                status="failed",
+                message=f"Не удалось получить токен доступа для банка {bank_name}: {e.details}",
+                error="TOKEN_FETCH_ERROR"
             )
         except httpx.HTTPStatusError as e:
             try:
@@ -62,40 +62,13 @@ class MCPService:
         """
         Получает счета из указанных банков для заданного пользователя.
         """
+        # TODO: Реализовать получение consent_id для каждого банка и пользователя.
+        # Это потребует доработки модели хранения токенов/согласий.
+        # Пока что, этот метод будет возвращать ошибку, т.к. consent_id не доступен.
+        consent_id = None # Здесь должна быть логика получения consent_id
+
         tasks = []
         for bank_name in bank_names:
-            # Для получения счетов нужен consent_id. В текущей реализации он получается отдельно.
-            # Здесь мы предполагаем, что consent_id либо уже есть, либо его нужно будет получить.
-            # Для простоты пока будем использовать заглушку или требовать его в запросе.
-            # В реальной системе MCP должен управлять согласиями.
-            # Пока что, для демонстрации, будем использовать заглушку для consent_id.
-            # В будущем MCP должен будет сам запрашивать или получать consent_id.
-            # Для текущей реализации, чтобы не менять существующий функционал, 
-            # мы будем использовать заглушку или требовать consent_id в запросе к MCP.
-            # Но для get_all_accounts, если мы хотим получить все счета, нам нужно будет 
-            # либо иметь consent_id для каждого банка, либо реализовать логику его получения.
-            # Для начала, давайте сделаем упрощенную версию, которая будет пытаться получить счета
-            # и возвращать ошибку, если consent_id не найден или не передан.
-
-            # Временное решение: для получения счетов, MCP должен будет иметь доступ к consent_id.
-            # Поскольку текущий crud.get_decrypted_token не хранит consent_id, 
-            # мы не можем его получить здесь. Это указывает на необходимость доработки 
-            # модели хранения токенов и согласий.
-            # Для демонстрации функционала MCP, пока что, этот метод будет возвращать ошибку,
-            # если consent_id не может быть получен.
-
-            # TODO: Реализовать получение consent_id для каждого банка и пользователя.
-            # Это потребует доработки модели Token в app/db/models.py для хранения consent_id.
-            # Или же MCP должен будет сам инициировать создание согласия, если его нет.
-
-            # Для текущей демонстрации, мы просто вернем ошибку, если consent_id не доступен.
-            # В реальной системе MCP должен будет управлять жизненным циклом согласий.
-
-            # Заглушка для consent_id, пока не будет реализовано управление согласиями в MCP
-            # Это место, где MCP должен будет получить или создать consent_id
-            # Для текущего примера, мы просто передадим None и обработаем ошибку.
-            consent_id = None # Здесь должна быть логика получения consent_id
-
             tasks.append(self._execute_bank_operation(
                 bank_name,
                 user_id,

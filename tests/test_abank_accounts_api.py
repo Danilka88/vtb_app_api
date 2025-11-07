@@ -12,51 +12,8 @@ USER_ID = "team042-1"
 TEST_ACCOUNT_ID = "acc-abank-1" # Изменено для ABank
 TEST_CONSENT_ID = None
 
-@pytest.fixture(scope="module")
-def init_bank_tokens():
-    """
-    Фикстура для инициализации банковских токенов перед выполнением тестов модуля.
-    """
-    print("\n--- Инициализация банк-токенов для ABank ---")
-    # Этот эндпоинт инициализирует токены для всех банков, включая ABank
-    response = client.post("/api/v1/auth/init-bank-tokens")
-    assert response.status_code == 200, f"Ошибка при инициализации банк-токенов: {response.text}"
-    print("Банк-токены успешно инициализированы.")
-
-
-@pytest.fixture(scope="module")
-def create_consent_fixture():
-    """
-    Фикстура для создания согласия на доступ к счетам для ABank.
-    """
-    global TEST_CONSENT_ID
-    print("\n--- Создание согласия на доступ к счетам для ABank (фикстура) ---")
-    consent_request = {
-        "bank_name": "abank",
-        "user_id": USER_ID,
-        "permissions": [
-            "ReadAccountsDetail",
-            "ReadBalances"
-        ]
-    }
-    response_create = client.post("/api/v1/auth/create-consent", json=consent_request)
-    assert response_create.status_code == 200, f"Ошибка при создании согласия: {response_create.text}"
-    TEST_CONSENT_ID = response_create.json().get("consent_id")
-    assert TEST_CONSENT_ID, "Consent ID не найден в ответе"
-    print(f"Согласие успешно создано. Consent ID: {TEST_CONSENT_ID}")
-    yield
-    # Отзыв согласия после выполнения всех тестов, если оно было создано.
-    if TEST_CONSENT_ID:
-        print(f"\n--- Отзыв согласия {TEST_CONSENT_ID} для ABank (фикстура) ---")
-        response_revoke = client.delete(f"/api/v1/auth/consents/{TEST_CONSENT_ID}?bank_name=abank&user_id={USER_ID}")
-        print(f"Статус ответа (отзыв): {response_revoke.status_code}")
-        print(f"Тело ответа (отзыв): {response_revoke.json()}")
-        assert response_revoke.status_code == 200, f"Ошибка при отзыве согласия: {response_revoke.text}"
-        print(f"Согласие {TEST_CONSENT_ID} успешно отозвано.")
-
-
 @pytest.mark.skip(reason="POST /accounts требует client_token или другого механизма аутентификации, который пока не реализован.")
-def test_create_account(init_bank_tokens): # Добавляем фикстуру как аргумент
+def test_create_account(): # Убрали фикстуру init_bank_tokens
     """
     Тест для создания нового счета.
     """

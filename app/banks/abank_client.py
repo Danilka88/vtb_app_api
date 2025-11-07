@@ -22,17 +22,6 @@ class ABankClient(BaseBankClient):
         self._payments_service = ABankPaymentsService(self)
         self._products_service = ABankProductsService(self)
 
-    async def get_bank_token(self) -> dict:
-        """
-        Получает банк-токен для ABank.
-        """
-        response = await self._async_client.post(
-            f"{self.api_url}/auth/bank-token",
-            params={"client_id": self.client_id, "client_secret": self.client_secret}
-        )
-        response.raise_for_status()
-        return response.json()
-
     async def create_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
         """
         Создает согласие на доступ к данным счета для ABank.

@@ -15,15 +15,6 @@ class TestSBankProductWorkflow:
     product_agreement_consent_id: str | None = None
     product_agreement_id: str | None = None
 
-    def test_0_init_bank_tokens(self, client: TestClient):
-        """
-        Шаг 0: Инициализация банковских токенов.
-        """
-        print("\n--- Шаг 0: Инициализация банковских токенов (SBank Products) ---")
-        response = client.post("/api/v1/auth/init-bank-tokens")
-        assert response.status_code == 200, f"Ошибка при инициализации банк-токенов: {response.text}"
-        print("Банк-токены успешно инициализированы.")
-
     def test_1_get_product_catalog(self, client: TestClient):
         """
         Шаг 1: Получение каталога продуктов и выбор одного продукта.

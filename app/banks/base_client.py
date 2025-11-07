@@ -18,23 +18,20 @@ class BaseBankClient(ABC):
         self.client_id = client_id
         self.client_secret = client_secret
         self.api_url = api_url
-        # Инициализируем асинхронный HTTP-клиент httpx.
-        # Добавляем конфигурацию mTLS, если пути к сертификату и ключу указаны.
+        self._async_client = self._create_http_client()
+
+    def _create_http_client(self) -> httpx.AsyncClient:
+        """
+        Фабричный метод для создания HTTP-клиента.
+        Позволяет в будущем легко подменять реализацию для поддержки mTLS, GOST и т.д.
+        """
         if settings.CLIENT_CERT_PATH and settings.CLIENT_KEY_PATH:
             print(f"DEBUG: Инициализация httpx.AsyncClient с mTLS. Cert: {settings.CLIENT_CERT_PATH}, Key: {settings.CLIENT_KEY_PATH}")
-            self._async_client = httpx.AsyncClient(cert=(settings.CLIENT_CERT_PATH, settings.CLIENT_KEY_PATH))
+            cert = (settings.CLIENT_CERT_PATH, settings.CLIENT_KEY_PATH)
+            return httpx.AsyncClient(cert=cert)
         else:
             print("DEBUG: Инициализация httpx.AsyncClient без mTLS.")
-            self._async_client = httpx.AsyncClient()
-
-    @abstractmethod
-    async def get_bank_token(self) -> dict:
-        """
-        Абстрактный метод для получения токена доступа банка.
-        Должен быть реализован в классах-наследниках для каждого конкретного банка.
-        Возвращает словарь с данными токена (access_token, expires_in).
-        """
-        pass
+            return httpx.AsyncClient()
 
     @abstractmethod
     async def create_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:

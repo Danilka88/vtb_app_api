@@ -18,15 +18,6 @@ class TestSBankPaymentWorkflow:
     payment_consent_id: str | None = None
     payment_id: str | None = None
 
-    def test_0_init_bank_tokens(self, client: TestClient):
-        """
-        Шаг 0: Инициализация банковских токенов.
-        """
-        print("\n--- Шаг 0: Инициализация банковских токенов ---")
-        response = client.post("/api/v1/auth/init-bank-tokens")
-        assert response.status_code == 200, f"Ошибка при инициализации банковских токенов: {response.text}"
-        print("Токены банков успешно инициализированы.")
-
     def test_1_get_debtor_account(self, client: TestClient):
         """
         Шаг 1: Получение реального счета для списания (счет дебитора).
