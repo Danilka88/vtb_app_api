@@ -1,11 +1,31 @@
-# Ignore specific files in the base directory
-/base/
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+Python-*-packages/
 
-# Ignore the GEMINI.md file
-/GEMINI.md
+# IDEs
+.idea/
+.vscode/
 
-# Ignore environment variables file
+# OS
+.DS_Store
 .env
 
-# Ignore cryptographic materials
-certs/
+# Virtual environment
+.venv/
+env/
+venv/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Test
+.pytest_cache/
+
+# uv
+uv.lock

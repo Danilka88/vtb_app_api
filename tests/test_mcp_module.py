@@ -84,8 +84,8 @@ async def test_get_all_accounts_consent_error(mcp_service, mock_auth_manager, mo
             assert result.status == "failed"
             assert "требуется consent_id" in result.message
         
-        mock_auth_manager.get_access_token.assert_any_call(mcp_service.db, "vbank")
-        mock_auth_manager.get_access_token.assert_any_call(mcp_service.db, "abank")
+        # mock_auth_manager.get_access_token не должен вызываться в этом сценарии
+        mock_auth_manager.get_access_token.assert_not_called()
         assert mock_bank_client.accounts.get_accounts.call_count == 0
 
 @pytest.mark.asyncio
@@ -95,9 +95,10 @@ async def test_get_all_accounts_token_not_found(mcp_service, mock_auth_manager):
     """
     bank_names = ["vbank"]
     user_id = "test-user-1"
+    consent_id = "mock_consent_id" # Добавляем consent_id, чтобы пройти проверку
     mock_auth_manager.get_access_token.side_effect = TokenFetchError(bank_name="vbank", details="Test error")
 
-    results = await mcp_service.get_all_accounts(bank_names, user_id)
+    results = await mcp_service.get_all_accounts(bank_names, user_id, consent_id)
 
     assert len(results) == 1
     result = results[0]

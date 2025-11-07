@@ -109,7 +109,7 @@ class MCPService:
         """
         Создает согласие для указанного банка.
         """
-        return await self._execute_operation(
+        return await self._execute_bank_operation(
             bank_name,
             user_id,
             lambda client, token: client.create_payment_consent(token, permissions, user_id, settings.CLIENT_ID, debtor_account, amount, currency) 
