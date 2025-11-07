@@ -5,7 +5,21 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 
-# Используем snake_case для полей, но alias для PascalCase, как в документации VBank
+
+class Transaction(BaseModel):
+    """
+    Модель данных для финансовой транзакции.
+    """
+    transaction_id: str = Field(..., description="Уникальный идентификатор транзакции")
+    bank_name: str = Field(..., description="Название банка, где произошла транзакция")
+    account_id: str = Field(..., description="Идентификатор счета, к которому относится транзакция")
+    description: str = Field(..., description="Описание транзакции")
+    amount: float = Field(..., description="Сумма транзакции (положительная для дохода, отрицательная для расхода)")
+    currency: str = Field(..., description="Валюта транзакции (например, 'RUB', 'USD')")
+    type: str = Field(..., description="Тип транзакции ('income' или 'expense')")
+    category: str = Field(..., description="Категория транзакции (например, 'Food', 'Salary')")
+    date: str = Field(..., description="Дата и время транзакции в формате ISO 8601")
+
 
 class CreditorAccount(BaseModel):
 

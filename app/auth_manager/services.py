@@ -5,6 +5,7 @@ import httpx
 from sqlalchemy.orm import Session
 from jose import jwt, jwk
 from jose.exceptions import JWTError
+from fastapi import Depends
 
 from app.core.config import settings
 from app.db import crud
@@ -151,3 +152,9 @@ class OAuth2AuthManager(BaseAuthManager):
         """
         if bank_name in _token_cache:
             del _token_cache[bank_name]
+
+def get_auth_manager() -> BaseAuthManager:
+    """
+    Зависимость для предоставления экземпляра BaseAuthManager.
+    """
+    return OAuth2AuthManager()

@@ -2,6 +2,16 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
+class FinancialGoal(BaseModel):
+    """
+    Модель данных для финансовой цели пользователя.
+    """
+    id: str = Field(..., description="Уникальный идентификатор цели")
+    name: str = Field(..., description="Название цели")
+    current_amount: float = Field(..., description="Текущая накопленная сумма")
+    target_amount: float = Field(..., description="Целевая сумма")
+
+
 class Product(BaseModel):
     """
     Схема для представления банковского продукта в каталоге.
