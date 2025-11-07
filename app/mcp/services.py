@@ -58,21 +58,31 @@ class MCPService:
                 error=str(e)
             )
 
-    async def get_all_accounts(self, bank_names: List[str], user_id: str) -> List[BankOperationResponse]:
+    async def get_all_accounts(self, bank_names: List[str], user_id: str, consent_id: Optional[str] = None) -> List[BankOperationResponse]:
         """
         Получает счета из указанных банков для заданного пользователя.
+        Требует `consent_id`, если он не будет получен автоматически в будущем.
         """
-        # TODO: Реализовать получение consent_id для каждого банка и пользователя.
-        # Это потребует доработки модели хранения токенов/согласий.
-        # Пока что, этот метод будет возвращать ошибку, т.к. consent_id не доступен.
-        consent_id = None # Здесь должна быть логика получения consent_id
-
         tasks = []
         for bank_name in bank_names:
+            # В будущем MCP должен будет сам находить или создавать consent_id.
+            # Пока что мы требуем его передачи.
+            if not consent_id:
+                # Создаем задачу, которая сразу вернет ошибку, если consent_id не предоставлен.
+                async def create_error_task():
+                    return BankOperationResponse(
+                        bank_name=bank_name,
+                        status="failed",
+                        message=f"Для получения счетов из банка {bank_name} требуется consent_id.",
+                        error="CONSENT_ID_REQUIRED"
+                    )
+                tasks.append(create_error_task())
+                continue
+
             tasks.append(self._execute_bank_operation(
                 bank_name,
                 user_id,
-                lambda client, token, current_bank_name=bank_name: client.accounts.get_accounts(token, consent_id, user_id) if consent_id else _raise_consent_error(current_bank_name)
+                lambda client, token: client.accounts.get_accounts(token, consent_id, user_id)
             ))
         results = await asyncio.gather(*tasks)
         return results

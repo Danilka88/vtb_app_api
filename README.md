@@ -69,6 +69,13 @@
     *   **Назначение:** Определяет структуры данных (Pydantic модели) для валидации входящих запросов, формирования исходящих ответов API и обмена данными между различными компонентами приложения.
     *   **Принцип:** **Data Transfer Object (DTO) / Валидация данных**.
 
+8.  **`app/public_ai_adapter/**` (Адаптер для внешних ИИ / Public AI Adapter):**
+    *   **Назначение:** Служит защищенным "мостом" между внешними ИИ-платформами (например, Claude, OpenAI) и внутренними сервисами приложения.
+    *   **Принципы работы:**
+        *   **Публичный API-контракт:** Предоставляет эндпоинт (`/api/v1/public_adapter/tool_calls`), который соответствует формату `Tool Use` / `Function Calling`, ожидаемому внешними ИИ-моделями.
+        *   **Трансляция запросов:** "Переводит" запросы от внешних ИИ в вызовы внутренних сервисов (в частности, `MCPService`), инкапсулируя логику приложения.
+        *   **Безопасность:** Доступ к эндпоинту защищен механизмом аутентификации по API-ключу (`X-API-Key`).
+
 ### Плюсы такой архитектуры:
 
 - **Четкое разделение ответственности (Separation of Concerns):** Каждый модуль имеет четко определенную роль.
@@ -121,6 +128,7 @@ CLIENT_SECRET=your_client_secret
 ENCRYPTION_KEY=your_32_byte_long_encryption_key
 DATABASE_URL=sqlite:///./app.db
 BANK_AUTH_URL=https://auth.bankingapi.ru/auth/realms/kubernetes/protocol/openid-connect/token
+PUBLIC_ADAPTER_API_KEY=your_secret_api_key_for_external_ai
 ```
 
 - `CLIENT_ID`, `CLIENT_SECRET`: Ваши учетные данные для API банков.
@@ -130,6 +138,7 @@ BANK_AUTH_URL=https://auth.bankingapi.ru/auth/realms/kubernetes/protocol/openid-
   ```
 - `DATABASE_URL`: URL для подключения к базе данных.
 - `BANK_AUTH_URL`: Единый URL для получения токенов по стандарту OAuth 2.0.
+- `PUBLIC_ADAPTER_API_KEY`: Секретный ключ для доступа к публичному адаптеру для внешних ИИ.
 
 ### 3. Запуск приложения
 
@@ -175,6 +184,68 @@ curl -X POST http://127.0.0.1:8000/api/v1/data/accounts/list -H "Content-Type: a
 ```
 
 Если все шаги прошли успешно, вы увидите список счетов. Это подтверждает, что ядро системы и новый менеджер аутентификации работают корректно!
+
+## Интеграция с внешними ИИ-платформами (Claude, OpenAI)
+
+Для интеграции с внешними ИИ-моделями был создан специальный модуль-адаптер `public_ai_adapter`. Он предоставляет защищенный эндпоинт, который "говорит на языке" `Tool Use` / `Function Calling` этих платформ.
+
+### Настройка
+
+1.  Убедитесь, что в вашем `.env` файле задан ключ `PUBLIC_ADAPTER_API_KEY`.
+2.  Сервер должен быть запущен и доступен из интернета (например, с помощью `ngrok` для локального тестирования).
+
+### Описание инструмента для ИИ
+
+Чтобы внешняя модель (например, GPT-4) могла использовать наш API, ей нужно предоставить описание доступного инструмента. Вот пример описания для инструмента `get_all_accounts` в формате OpenAI:
+
+```json
+{
+  "type": "function",
+  "function": {
+    "name": "get_all_accounts",
+    "description": "Получает список всех счетов пользователя в указанных банках.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "bank_names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Список названий банков, например ['vbank', 'abank']"
+        }
+      },
+      "required": ["bank_names"]
+    }
+  }
+}
+```
+
+### Пример вызова API
+
+Внешняя система должна отправить POST-запрос на эндпоинт `/api/v1/public_adapter/tool_calls`, передав `X-API-Key` в заголовках и тело запроса в формате, который имитирует вывод модели.
+
+```bash
+# Замените YOUR_API_KEY на ваш ключ из .env
+curl -X POST http://127.0.0.1:8000/api/v1/public_adapter/tool_calls \
+-H "Content-Type: application/json" \
+-H "X-API-Key: YOUR_API_KEY" \
+-d '{
+  "user_id": "team042-1",
+  "tool_calls": [
+    {
+      "id": "call_abc123",
+      "type": "function",
+      "function": {
+        "name": "get_all_accounts",
+        "arguments": "{\\"bank_names\\": [\\"vbank\\", \\"abank\\"]}"
+      }
+    }
+  ]
+}'
+```
+
+В ответ адаптер вернет результат выполнения в формате, который модель сможет обработать для формирования финального ответа пользователю.
 
 ## Запуск тестов
 
