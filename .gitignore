@@ -29,3 +29,9 @@ venv/
 
 # uv
 uv.lock
+
+# Gemini specific
+GEMINI.md
+
+# Base directory content
+base/
