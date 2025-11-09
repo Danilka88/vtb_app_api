@@ -35,3 +35,7 @@ GEMINI.md
 
 # Base directory content
 base/
+
+# UI
+ui/node_modules/
+ui/package-lock.json
