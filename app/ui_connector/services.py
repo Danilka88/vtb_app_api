@@ -91,6 +91,7 @@ class UIService:
                 spending_chart_data[category] = spending_chart_data.get(category, 0) + amount
 
         # 5. Получаем финансовые цели (пока заглушка)
+        # TODO: Реализовать получение финансовых целей из базы данных или другого источника.
         financial_goals = [] # Заглушка
 
         # 6. Собираем все в единую DTO

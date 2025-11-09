@@ -23,7 +23,6 @@ class VBankClient(BaseBankClient):
         self._products_service = VBankProductsService(self)
 
     async def create_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
-        # DeprecationWarning: datetime.datetime.utcnow() is deprecated. Use datetime.datetime.now(datetime.UTC).
         """
         Создает согласие на доступ к данным счета для VBank.
         Этот метод обрабатывает только согласия, связанные с доступом к данным (не платежные).

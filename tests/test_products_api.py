@@ -1,10 +1,19 @@
-
 import pytest
 from fastapi.testclient import TestClient
 import uuid
+from unittest.mock import AsyncMock, MagicMock
 
 # Используем USER_ID из настроек для тестов
 USER_ID = "team042-1"
+
+@pytest.fixture(autouse=True)
+def mock_httpx_client(mocker):
+    """
+    Автоматическая фикстура для мокирования httpx.AsyncClient.
+    """
+    mock_client = AsyncMock()
+    mocker.patch("httpx.AsyncClient", return_value=mock_client)
+    return mock_client
 
 class TestVBankProductWorkflow:
     """
@@ -15,11 +24,22 @@ class TestVBankProductWorkflow:
     product_agreement_consent_id: str | None = None
     product_agreement_id: str | None = None
 
-    def test_1_get_product_catalog(self, client: TestClient):
+    def test_1_get_product_catalog(self, client: TestClient, mock_httpx_client: AsyncMock):
         """
         Шаг 1: Получение каталога продуктов и выбор одного продукта.
         """
         print("\n--- Шаг 1: Получение каталога продуктов (VBank Products) ---")
+        
+        # Мокаем ответ
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "data": {
+                "product": [{"productId": "mock_product_id", "productName": "Mock Product", "productType": "DEPOSIT"}]
+            }
+        }
+        mock_httpx_client.get.return_value = mock_response
+        
         response = client.get("/api/v1/products/products", params={"bank_name": "vbank"})
         assert response.status_code == 200, f"Ошибка при получении каталога продуктов: {response.text}"
         products = response.json()

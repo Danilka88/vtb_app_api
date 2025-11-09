@@ -38,14 +38,15 @@ class VBankAccountsService(BaseAccountsService):
         Получает балансы для конкретного счета из VBank.
         Требует `access_token` и `consent_id` с разрешением `ReadBalances`.
         """
-        response = await self._client._async_client.get(
+        response = await self._client._async_client.post(
             f"{self._client.api_url}/accounts/{account_id}/balances",
             headers={
                 "Authorization": f"Bearer {access_token}",
                 "X-Requesting-Bank": settings.CLIENT_ID,
-                "X-Consent-Id": consent_id
+                "X-Consent-Id": consent_id,
+                "Content-Type": "application/json"
             },
-            params={"client_id": user_id}
+            json={"user_id": user_id}
         )
         response.raise_for_status()
         response_data = response.json()
