@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Card } from './shared/Card';
 import { Spinner } from './shared/Spinner';
@@ -100,9 +101,7 @@ export const CardsPage: React.FC = () => {
 
     const spendingByCategory = data.transactions
         .filter(t => t.type === 'expense' && new Date(t.date) > oneMonthAgo)
-        // FIX: Explicitly typing the accumulator for `reduce` ensures correct type inference,
-        // preventing downstream errors where values were treated as `any` instead of `number`.
-        .reduce((acc: { [key: string]: number }, t) => {
+        .reduce<Record<string, number>>((acc, t) => {
             if (!acc[t.category]) {
                 acc[t.category] = 0;
             }
@@ -112,7 +111,11 @@ export const CardsPage: React.FC = () => {
 
     if (Object.keys(spendingByCategory).length === 0) return null;
     
-    const topCategory = Object.entries(spendingByCategory).sort((a, b) => b[1] - a[1])[0];
+    const sortedCategories = Object.entries(spendingByCategory).sort((a: [string, number], b: [string, number]) => b[1] - a[1]);
+    const topCategory = sortedCategories[0];
+
+    if (!topCategory) return null;
+
     const [topCategoryName, topCategorySpent] = topCategory;
 
     let currentUserBestRate = 0;
@@ -138,7 +141,7 @@ export const CardsPage: React.FC = () => {
     }
 
     if (bestOffer) {
-        const potentialSaving = topCategorySpent * ((bestOfferRate - currentUserBestRate) / 100);
+        const potentialSaving = (topCategorySpent as number) * ((bestOfferRate - currentUserBestRate) / 100);
         if (potentialSaving > 100) { 
             return {
                 offer: bestOffer,

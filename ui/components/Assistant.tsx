@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Card } from './shared/Card';
 import { Spinner } from './shared/Spinner';
@@ -12,6 +13,19 @@ interface Message {
   text: string;
 }
 
+/**
+ * Component: Assistant
+ * 
+ * Description:
+ * Provides a chat interface powered by Google Gemini (gemini-2.5-flash).
+ * Acts as a financial advisor by ingesting the user's aggregated financial data as context.
+ * 
+ * Logic:
+ * 1. Fetches user's financial data (mocked via `fetchFinancialData`).
+ * 2. Serializes `FinancialData` into JSON.
+ * 3. Injects the JSON into the system prompt/content to ground the LLM's responses.
+ * 4. Sends the prompt to the Gemini API via GoogleGenAI SDK.
+ */
 export const Assistant: React.FC = () => {
   const [financialData, setFinancialData] = useState<FinancialData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -47,14 +61,16 @@ export const Assistant: React.FC = () => {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
       
+      // System instruction defines the persona and formatting rules
       const systemInstruction = `You are a helpful and friendly financial assistant for a Russian user. Your name is Мультибанк Ассистент. Analyze the provided financial data and answer the user's questions in Russian. Provide concise, clear, and actionable financial advice. Use Markdown for formatting, especially bolding key terms with **term**. Do not use headers. Financial data will be provided in JSON format. All amounts are in RUB.`;
 
+      // Context injection: The entire financial state is passed to the model
       const prompt = `Вот финансовые данные пользователя в формате JSON:
 ${JSON.stringify(financialData, null, 2)}
 
 Вопрос пользователя: "${currentInput}"`;
 
-      // FIX: Changed model to gemini-2.5-flash for better performance and cost-efficiency.
+      // Using gemini-2.5-flash for low latency response
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
@@ -135,7 +151,7 @@ ${JSON.stringify(financialData, null, 2)}
               disabled={isLoading}
               className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-slate-500 disabled:cursor-not-allowed transition"
             >
-              Send
+              Отправить
             </button>
           </div>
         </div>

@@ -1,13 +1,31 @@
-import { FinancialData, TrustIssue } from '../types';
 
-// Расширяем и добавляем новые счета для более сложных сценариев
+import { FinancialData, TrustIssue, BudgetPlan, FinancialHealth } from '../types';
+
+/**
+ * ---------------------------------------------------------------------------
+ * MOCK DATA SERVICE LAYER
+ * ---------------------------------------------------------------------------
+ * 
+ * NOTE FOR API DEVELOPERS:
+ * This file simulates the backend API for the Multibank Nexus application.
+ * In a production environment, this service would be replaced by actual HTTP 
+ * calls (using fetch or axios) to the backend endpoints defined in `types.ts`.
+ * 
+ * The expected primary endpoint for the dashboard initialization is:
+ * GET /api/v1/aggregator/dashboard
+ * 
+ * This endpoint should perform server-side aggregation of data from connected 
+ * Open Banking providers (VBank, ABank, SBank, etc.).
+ */
+
+// Mock Accounts representing data fetched from multiple open banking APIs
 const ACCOUNTS = {
     abank_debit: {
         id: 'acc_tbank_debit',
         name: 'ABank Black',
         bankName: 'ABank',
         last4: '1111',
-        balance: 28340.70, // Уменьшен баланс для демонстрации нехватки средств
+        balance: 28340.70, // Reduced balance to demonstrate "Smart Debiting" logic
         type: 'debit' as 'debit',
         brandColor: '#EF3124',
     },
@@ -58,6 +76,81 @@ const ACCOUNTS = {
     },
 };
 
+// Mock Budget Data
+const BUDGET_PLAN: BudgetPlan = {
+    totalMonthlyIncome: 240000,
+    safeDailySpend: 3200,
+    daysRemainingInMonth: 12,
+    envelopes: [
+        { id: 'env1', name: 'Обязательные платежи', type: 'essentials', allocatedAmount: 120000, spentAmount: 95000, forecastedAmount: 118000, color: '#3b82f6' }, // Blue
+        { id: 'env2', name: 'Развлечения и Хотелки', type: 'wants', allocatedAmount: 72000, spentAmount: 55000, forecastedAmount: 75000, color: '#a855f7' }, // Purple
+        { id: 'env3', name: 'Накопления и Инвестиции', type: 'savings', allocatedAmount: 48000, spentAmount: 48000, forecastedAmount: 48000, color: '#22c55e' }  // Green
+    ],
+    insights: [
+        "Ваши расходы на категорию 'Развлечения' превышают норму на 12%. Рекомендуем сократить походы в рестораны на этой неделе.",
+        "Вы отлично справляетесь с накоплениями! План по сбережениям выполнен на 100%.",
+        "Исходя из текущего темпа трат, к концу месяца у вас останется около 15 000 ₽ свободных средств."
+    ]
+};
+
+// Mock Financial Health Data
+const MOCK_FINANCIAL_HEALTH: FinancialHealth = {
+    totalScore: 78,
+    components: [
+        {
+            id: 'comp_spending',
+            category: 'spending',
+            label: 'Контроль трат',
+            score: 24,
+            maxScore: 30,
+            status: 'good',
+            advice: 'Вы держитесь в рамках бюджета, но категория "Развлечения" немного превышена.'
+        },
+        {
+            id: 'comp_debt',
+            category: 'debt',
+            label: 'Кредитная нагрузка',
+            score: 20,
+            maxScore: 30,
+            status: 'fair',
+            advice: 'Платежи по кредитам составляют 25% от дохода. Это приемлемо, но лучше снизить до 20%.'
+        },
+        {
+            id: 'comp_savings',
+            category: 'savings',
+            label: 'Подушка безопасности',
+            score: 16,
+            maxScore: 20,
+            status: 'good',
+            advice: 'У вас есть запас на 3 месяца. Рекомендуем увеличить его до 6 месяцев.'
+        },
+        {
+            id: 'comp_regularity',
+            category: 'regularity',
+            label: 'Стабильность дохода',
+            score: 18,
+            maxScore: 20,
+            status: 'excellent',
+            advice: 'Поступления на зарплатный счет регулярны и предсказуемы. Отличная работа!'
+        }
+    ],
+    badges: [
+        { id: 'b1', name: 'Зарплатник', description: 'Регулярные поступления зарплаты 3 месяца подряд', iconName: 'briefcase', unlocked: true },
+        { id: 'b2', name: 'Сберегатель', description: 'Накопительный счет растет 2 месяца подряд', iconName: 'piggy', unlocked: true },
+        { id: 'b3', name: 'Уничтожитель долгов', description: 'Закрыть одну кредитную карту', iconName: 'shield', unlocked: false },
+        { id: 'b4', name: 'Инвестор', description: 'Открыть брокерский счет', iconName: 'chart', unlocked: false },
+    ],
+    rewards: [
+        { id: 'r1', title: 'Повышенный кэшбэк', description: '+1% на все покупки в следующем месяце', requiredScore: 70, isLocked: false },
+        { id: 'r2', title: 'Скидка на кредит', description: '-0.5% к ставке по потребительскому кредиту', requiredScore: 85, isLocked: true },
+        { id: 'r3', title: 'Бесплатное обслуживание', description: 'Премиум тариф бесплатно на 3 месяца', requiredScore: 95, isLocked: true },
+    ]
+};
+
+/**
+ * MOCK AGGREGATED RESPONSE
+ * This object represents the JSON structure the Frontend expects from the Backend.
+ */
 const MOCK_DATA: FinancialData = {
     netWorth: Object.values(ACCOUNTS).reduce((sum, acc) => sum + acc.balance, 0),
     accounts: Object.values(ACCOUNTS),
@@ -84,16 +177,19 @@ const MOCK_DATA: FinancialData = {
         { id: 'g1', name: 'Отпуск в Таиланде', currentAmount: 210000, targetAmount: 350000 },
         { id: 'g2', name: 'Новый ноутбук', currentAmount: 45000, targetAmount: 150000 },
     ],
+    // Config for the Night Safe feature
     nightSafe: {
         enabled: true,
         includedAccountIds: [ACCOUNTS.abank_debit.id, ACCOUNTS.sbank_debit.id, ACCOUNTS.abank_debit_2.id],
         targetAccountId: ACCOUNTS.vbank_savings.id,
         stats: { yesterday: 120.54, month: 3450.12, total: 15230.88 },
     },
+    // Config for Smart Pay feature
     smartPay: {
         enabled: true,
         includedAccountIds: [ACCOUNTS.abank_debit.id, ACCOUNTS.sbank_debit.id, ACCOUNTS.abank_debit_2.id, ACCOUNTS.abank_credit.id],
     },
+    // Used for calculating best cards for purchases
     cashbackCategories: [
         { bankName: 'ABank', categories: { 'Рестораны': 5, 'АЗС': 3, 'Путешествия': 2, 'Супермаркеты': 3, 'Подписки': 10, 'Книги': 5, 'Такси': 5 } },
         { bankName: 'SBank', categories: { 'Супермаркеты': 2, 'Рестораны': 1, 'АЗС': 1, 'Доставка': 5 } },
@@ -198,13 +294,20 @@ const MOCK_DATA: FinancialData = {
             recommendation: 'Если планируете подобные операции, будьте готовы к возможным задержкам и сохраняйте все документы и переписку с банком.',
         }
     ] as TrustIssue[],
+    budgetPlan: BUDGET_PLAN,
+    financialHealth: MOCK_FINANCIAL_HEALTH,
 };
 
+/**
+ * Simulates the API call to fetch aggregated financial data.
+ * Returns a Promise that resolves with the mock data after a short delay.
+ */
 export const fetchFinancialData = async (): Promise<FinancialData> => {
     // Simulate API call delay
     return new Promise(resolve => {
         setTimeout(() => {
-            resolve(JSON.parse(JSON.stringify(MOCK_DATA))); // Deep copy to avoid mutation issues
+            // Return a deep copy to avoid mutation issues in the simulated environment
+            resolve(JSON.parse(JSON.stringify(MOCK_DATA)));
         }, 500);
     });
 };

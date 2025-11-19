@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -16,11 +17,19 @@ import { SmartSubscriptions } from './components/SmartSubscriptions';
 import { SmartLoanPayments } from './components/SmartLoanPayments';
 import { SubscriptionMarketplace } from './components/SubscriptionMarketplace';
 import { TrustPlatform } from './components/TrustPlatform';
+import { SmartBudgeting } from './components/SmartBudgeting';
+import { FinancialHealthPage } from './components/FinancialHealth';
+import { LoginPage } from './components/LoginPage';
+import { ConnectBanksPage } from './components/ConnectBanksPage';
 import { ActiveView, NavItem } from './types';
-import { HomeIcon, CreditCardIcon, ArrowsRightLeftIcon, ClockIcon, ShieldCheckIcon, FireIcon, BoltIcon, SparklesIcon, LightBulbIcon, ScaleIcon, BellSlashIcon, ReceiptPercentIcon, BuildingStorefrontIcon, ShieldExclamationIcon } from './constants';
+import { HomeIcon, CreditCardIcon, ArrowsRightLeftIcon, ClockIcon, ShieldCheckIcon, FireIcon, BoltIcon, SparklesIcon, LightBulbIcon, ScaleIcon, BellSlashIcon, ReceiptPercentIcon, BuildingStorefrontIcon, ShieldExclamationIcon, KeyIcon, CalculatorIcon, TrophyIcon } from './constants';
 
+// Navigation configuration for Sidebar and BottomNav
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Главная', icon: <HomeIcon className="w-6 h-6" /> },
+  { id: 'connect-banks', label: 'Подключить банки', icon: <KeyIcon className="w-6 h-6" /> },
+  { id: 'financial-health', label: 'Фин. Здоровье', icon: <TrophyIcon className="w-6 h-6" /> },
+  { id: 'smart-budgeting', label: 'AI Бюджет', icon: <CalculatorIcon className="w-6 h-6" /> },
   { id: 'cards', label: 'Карты', icon: <CreditCardIcon className="w-6 h-6" /> },
   { id: 'payments', label: 'Платежи', icon: <ArrowsRightLeftIcon className="w-6 h-6" /> },
   { id: 'history', label: 'История', icon: <ClockIcon className="w-6 h-6" /> },
@@ -36,13 +45,42 @@ const navItems: NavItem[] = [
   { id: 'smart-exchange', label: 'Умный Обмен', icon: <ScaleIcon className="w-6 h-6" /> },
 ];
 
+/**
+ * Component: App
+ * 
+ * Description:
+ * The root component serving as the main layout container and router.
+ * 
+ * Responsibilities:
+ * 1. Authentication Guard: Checks for `userId`. If missing, renders `LoginPage`.
+ * 2. Navigation State: Manages `activeView` to switch between functional components.
+ * 3. Layout: Renders Sidebar (Desktop), Header, BottomNav (Mobile), and Content Area.
+ */
 function App() {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
+  const [userId, setUserId] = useState<string | null>(null);
 
+  // Authentication Guard
+  // If no user is logged in, show the Login Page.
+  // In a real app, this would check a persistent session or JWT.
+  if (!userId) {
+    return <LoginPage onLogin={setUserId} />;
+  }
+
+  /**
+   * Renders the active component based on the state.
+   * This serves as a client-side router replacement for demonstration simplicity.
+   */
   const renderContent = () => {
     switch (activeView) {
       case 'dashboard':
         return <Dashboard setActiveView={setActiveView} />;
+      case 'connect-banks':
+        return <ConnectBanksPage userId={userId} />;
+      case 'smart-budgeting':
+        return <SmartBudgeting />;
+      case 'financial-health':
+        return <FinancialHealthPage />;
       case 'assistant':
         return <Assistant />;
       case 'night-safe':

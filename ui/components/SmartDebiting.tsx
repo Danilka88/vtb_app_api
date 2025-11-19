@@ -26,6 +26,25 @@ interface CalculationResult {
     plan?: WithdrawalStep[];
 }
 
+/**
+ * Component: SmartDebiting
+ * 
+ * Description: 
+ * Simulates a "Smart Overdraft" feature.
+ * 
+ * Business Logic (Client-Side Simulation):
+ * 1. User enters a desired purchase amount.
+ * 2. Check if primary account has sufficient funds.
+ * 3. If insufficient:
+ *    - Identify shortfall.
+ *    - Scan other connected accounts (excluding Credit cards).
+ *    - Priority Rule: Use 'debit' accounts first (Priority 1), then 'savings' accounts (Priority 2).
+ * 4. Generate a "Withdrawal Plan" suggesting exact amounts to pull from each source.
+ * 
+ * API Interaction:
+ * - Fetches data via `fetchFinancialData`.
+ * - Logic assumes aggregated account balances are available.
+ */
 export const SmartDebiting: React.FC = () => {
     const [data, setData] = useState<FinancialData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -53,12 +72,14 @@ export const SmartDebiting: React.FC = () => {
         const primaryAccount = data.accounts.find(acc => acc.id === primaryAccountId);
         if (!primaryAccount) return;
 
+        // Check if primary account has enough funds
         if (primaryAccount.balance >= amount) {
             setResult({ sufficient: true });
             return;
         }
         
         let shortfall = amount - primaryAccount.balance;
+        // Initial plan step: Empty the primary account
         const plan: WithdrawalStep[] = [{
             accountId: primaryAccount.id,
             accountName: primaryAccount.name,
@@ -68,11 +89,15 @@ export const SmartDebiting: React.FC = () => {
             reason: 'Использовать весь доступный баланс с основного счета.'
         }];
         
-        const accountPriority = { 'debit': 1, 'savings': 2 };
+        // Define priority: Debit (1) -> Savings (2)
+        const accountPriority: Record<string, number> = { 'debit': 1, 'savings': 2 };
+        
+        // Filter and sort available source accounts
         const sourceAccounts = data.accounts
             .filter(acc => acc.id !== primaryAccountId && acc.type !== 'credit')
             .sort((a, b) => (accountPriority[a.type] || 99) - (accountPriority[b.type] || 99));
 
+        // Iterate and fill the shortfall
         for (const account of sourceAccounts) {
             if (shortfall <= 0) break;
             

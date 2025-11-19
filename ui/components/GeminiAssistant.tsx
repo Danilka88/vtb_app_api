@@ -135,7 +135,7 @@ ${JSON.stringify(financialData, null, 2)}
               disabled={isLoading}
               className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-blue-700 disabled:bg-slate-500 disabled:cursor-not-allowed transition"
             >
-              Send
+              Отправить
             </button>
           </div>
         </div>
