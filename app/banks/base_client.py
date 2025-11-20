@@ -7,6 +7,7 @@ from app.auth_manager.schemas import TokenResponse
 from app.banks.services.accounts.base import BaseAccountsService
 from app.banks.services.payments.base import BasePaymentsService
 from app.banks.services.products.base import BaseProductsService
+from app.banks.services.cards.base import BaseCardsService
 
 
 class BaseBankClient(ABC):
@@ -111,6 +112,28 @@ class BaseBankClient(ABC):
         """
         Абстрактное свойство, возвращающее сервис для работы с продуктами банка.
         Должно быть реализовано в классах-наследниках.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def cards(self) -> BaseCardsService:
+        """
+        Абстрактное свойство, возвращающее сервис для работы с картами банка.
+        """
+        pass
+
+    @abstractmethod
+    async def get_cards(self, access_token: str, user_id: str, consent_id: str) -> list[dict]:
+        """
+        Абстрактный метод для получения списка карт.
+        """
+        pass
+
+    @abstractmethod
+    async def get_card_details(self, access_token: str, user_id: str, consent_id: str, card_id: str) -> dict:
+        """
+        Абстрактный метод для получения деталей карты.
         """
         pass
 

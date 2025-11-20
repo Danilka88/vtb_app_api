@@ -14,3 +14,22 @@ def get_auth_manager() -> BaseAuthManager:
     Возвращает синглтон-экземпляр OAuth2AuthManager для использования кэша.
     """
     return _auth_manager_instance
+
+
+async def get_user_bank_token(
+    bank_name: str,
+    db: Session = Depends(get_db),
+    auth_manager: BaseAuthManager = Depends(get_auth_manager),
+) -> str:
+    """
+    Зависимость, которая предоставляет валидный токен доступа для указанного банка.
+    """
+    token = await auth_manager.get_access_token(db, bank_name)
+    return token
+
+def get_current_user_id() -> str:
+    """
+    Заглушка для получения ID текущего пользователя.
+    В реальном приложении здесь будет логика извлечения ID из JWT токена или из сессии.
+    """
+    return "test_user_id" # Возвращаем статический ID для отладки

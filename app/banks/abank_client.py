@@ -9,6 +9,7 @@ from app.auth_manager.schemas import TokenResponse
 from app.banks.services.accounts.abank import ABankAccountsService
 from app.banks.services.payments.abank import ABankPaymentsService
 from app.banks.services.products.abank import ABankProductsService
+from app.banks.services.cards.abank import ABankCardsService
 from app.banks.services.products.base import BaseProductsService
 
 
@@ -22,6 +23,7 @@ class ABankClient(BaseBankClient):
         self._accounts_service = ABankAccountsService(self)
         self._payments_service = ABankPaymentsService(self)
         self._products_service = ABankProductsService(self)
+        self._cards_service = ABankCardsService(self)
 
     async def get_bank_token(self) -> TokenResponse:
         """
@@ -84,6 +86,53 @@ class ABankClient(BaseBankClient):
         Возвращает сервис для работы с продуктами ABank.
         """
         return self._products_service
+
+    @property
+    def cards(self) -> ABankCardsService:
+        """
+        Возвращает сервис для работы с картами ABank.
+        """
+        return self._cards_service
+
+    async def get_cards(self, access_token: str, user_id: str, consent_id: str) -> list[dict]:
+        """
+        Получает список карт клиента из ABank.
+        """
+        response = await self._async_client.get(
+            f"{self.api_url}/cards",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID,
+                "X-Consent-Id": consent_id
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status()
+        response_data = response.json()
+        if "data" in response_data and "cards" in response_data["data"]:
+            return response_data["data"]["cards"]
+        elif "cards" in response_data:
+             return response_data["cards"]
+        raise ValueError(f"Неожиданная структура ответа от ABank при получении карт: {response_data}")
+
+    async def get_card_details(self, access_token: str, user_id: str, consent_id: str, card_id: str) -> dict:
+        """
+        Получает детальную информацию о карте из ABank.
+        """
+        response = await self._async_client.get(
+            f"{self.api_url}/cards/{card_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID,
+                "X-Consent-Id": consent_id
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status()
+        response_data = response.json()
+        if "data" in response_data:
+            return response_data["data"]
+        return response_data
 
     async def create_product_agreement_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
         """
@@ -204,9 +253,17 @@ class ABankClient(BaseBankClient):
     async def get_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
         """
         Получает информацию о согласии по его ID из ABank.
-        На данный момент не реализовано.
         """
-        raise NotImplementedError("Метод get_consent не реализован для ABank.")
+        response = await self._async_client.get(
+            f"{self.api_url}/account-consents/{consent_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status()
+        return response.json()
 
     async def revoke_consent(self, access_token: str, consent_id: str, user_id: str) -> dict:
         """

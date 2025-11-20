@@ -7,6 +7,7 @@ from app.auth_manager.schemas import TokenResponse
 from app.banks.services.accounts.vbank import VBankAccountsService
 from app.banks.services.payments.vbank import VBankPaymentsService
 from app.banks.services.products.vbank import VBankProductsService
+from app.banks.services.cards.vbank import VBankCardsService
 from app.banks.services.products.base import BaseProductsService
 
 
@@ -22,6 +23,7 @@ class VBankClient(BaseBankClient):
         self._accounts_service = VBankAccountsService(self)
         self._payments_service = VBankPaymentsService(self)
         self._products_service = VBankProductsService(self)
+        self._cards_service = VBankCardsService(self)
 
     async def get_bank_token(self) -> TokenResponse:
         """
@@ -190,6 +192,56 @@ class VBankClient(BaseBankClient):
         Возвращает сервис для работы с продуктами VBank.
         """
         return self._products_service
+
+    @property
+    def cards(self) -> VBankCardsService:
+        """
+        Возвращает сервис для работы с картами VBank.
+        """
+        return self._cards_service
+
+    async def get_cards(self, access_token: str, user_id: str, consent_id: str) -> list[dict]:
+        """
+        Получает список карт клиента из VBank.
+        """
+        response = await self._async_client.get(
+            f"{self.api_url}/cards",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID,
+                "X-Consent-Id": consent_id
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status()
+        # Предполагаем, что VBank, как и другие, возвращает данные в структуре {"data": {"cards": [...]}}
+        # или просто {"cards": [...]}. Адаптируем под наиболее вероятный формат.
+        response_data = response.json()
+        if "data" in response_data and "cards" in response_data["data"]:
+            return response_data["data"]["cards"]
+        elif "cards" in response_data:
+             return response_data["cards"]
+        raise ValueError(f"Неожиданная структура ответа от VBank при получении карт: {response_data}")
+
+    async def get_card_details(self, access_token: str, user_id: str, consent_id: str, card_id: str) -> dict:
+        """
+        Получает детальную информацию о карте из VBank.
+        """
+        response = await self._async_client.get(
+            f"{self.api_url}/cards/{card_id}",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "X-Requesting-Bank": settings.CLIENT_ID,
+                "X-Consent-Id": consent_id
+            },
+            params={"client_id": user_id}
+        )
+        response.raise_for_status()
+        response_data = response.json()
+        if "data" in response_data: # Проверяем общую структуру
+            return response_data["data"]
+        return response_data # Возвращаем как есть, если структура плоская
+
 
     async def create_product_agreement_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
         """
