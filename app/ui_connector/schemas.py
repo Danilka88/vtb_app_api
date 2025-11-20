@@ -2,68 +2,191 @@
 Pydantic-схемы (DTO) для модуля UI Connector.
 
 Этот файл определяет структуры данных, которые `ui_connector` будет использовать
-для отправки ответов на фронтенд. Эти схемы специально разработаны
-и агрегированы для удобства UI-компонентов, чтобы минимизировать
-логику обработки данных на стороне клиента.
+для отправки ответов на фронтенд. Эти схемы точно соответствуют интерфейсам
+TypeScript из `ui/types.ts`, чтобы обеспечить полную совместимость
+между бэкендом и фронтендом.
 """
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Literal
 
-# Базовые схемы, импортированные для композиции
-# Предполагается, что эти схемы уже определены в других модулях
-# и мы их здесь переиспользуем или адаптируем.
-# Для примера, возьмем их из app/schemas/
-from app.schemas.account import Account
-from app.schemas.payment import Transaction
-from app.schemas.product import FinancialGoal
+# --- Базовые модели, соответствующие ui/types.ts ---
 
+class Account(BaseModel):
+    id: str
+    name: str
+    bank_name: str = Field(..., alias="bankName")
+    last4: str
+    balance: float
+    type: Literal['debit', 'credit', 'savings']
+    brand_color: str = Field(..., alias="brandColor")
 
-class DashboardData(BaseModel):
-    """
-    Агрегированные данные для главной страницы (Dashboard).
-    """
-    net_worth: float = Field(..., description="Общий капитал пользователя")
-    accounts: List[Account] = Field(..., description="Список счетов пользователя")
-    spending_chart_data: Dict[str, float] = Field(..., description="Данные для круговой диаграммы трат по категориям")
-    recent_transactions: List[Transaction] = Field(..., description="Список последних транзакций")
-    financial_goals: List[FinancialGoal] = Field(..., description="Список финансовых целей")
+class Transaction(BaseModel):
+    id: str
+    date: str
+    description: str
+    amount: float
+    type: Literal['income', 'expense']
+    category: str
 
+class FinancialGoal(BaseModel):
+    id: str
+    name: str
+    current_amount: float = Field(..., alias="currentAmount")
+    target_amount: float = Field(..., alias="targetAmount")
+
+class NightSafeData(BaseModel):
+    enabled: bool
+    included_account_ids: List[str] = Field(..., alias="includedAccountIds")
+    target_account_id: str = Field(..., alias="targetAccountId")
+    stats: Dict[str, float]
+
+class SmartPayData(BaseModel):
+    enabled: bool
+    included_account_ids: List[str] = Field(..., alias="includedAccountIds")
+
+class CashbackCategory(BaseModel):
+    bank_name: str = Field(..., alias="bankName")
+    categories: Dict[str, int]
+
+class SpecialOffer(BaseModel):
+    id: str
+    partner_name: str = Field(..., alias="partnerName")
+    bank_name: str = Field(..., alias="bankName")
+    description: str
+    expiry_date: str = Field(..., alias="expiryDate")
+    brand_color: str = Field(..., alias="brandColor")
+
+class ExchangeRate(BaseModel):
+    bank_name: str = Field(..., alias="bankName")
+    from_currency: Literal['RUB'] = Field(..., alias="from")
+    to_currency: Literal['USD', 'EUR', 'CNY'] = Field(..., alias="to")
+    buy: float
+    sell: float
+    promotion: Optional[str] = None
+
+class Subscription(BaseModel):
+    id: str
+    name: str
+    amount: float
+    billing_cycle: Literal['monthly', 'yearly'] = Field(..., alias="billingCycle")
+    next_payment_date: str = Field(..., alias="nextPaymentDate")
+    linked_account_id: str = Field(..., alias="linkedAccountId")
+    status: Literal['active', 'blocked']
+
+class Loan(BaseModel):
+    id: str
+    name: str
+    bank_name: str = Field(..., alias="bankName")
+    remaining_amount: float = Field(..., alias="remainingAmount")
+    interest_rate: float = Field(..., alias="interestRate")
+    monthly_payment: float = Field(..., alias="monthlyPayment")
+    next_payment_date: str = Field(..., alias="nextPaymentDate")
+    linked_account_id: str = Field(..., alias="linkedAccountId")
+
+class RefinancingOffer(BaseModel):
+    id: str
+    bank_name: str = Field(..., alias="bankName")
+    new_interest_rate: float = Field(..., alias="newInterestRate")
+    description: str
+    max_amount: int = Field(..., alias="maxAmount")
+    brand_color: str = Field(..., alias="brandColor")
+
+class MarketplaceSubscription(BaseModel):
+    id: str
+    name: str
+    logo_url: str = Field(..., alias="logoUrl")
+    cost: float
+    billing_cycle: Literal['monthly', 'yearly'] = Field(..., alias="billingCycle")
+    benefits: List[str]
+    related_merchants: List[str] = Field(..., alias="relatedMerchants")
+    cashback_category: str = Field(..., alias="cashbackCategory")
+
+class TrustIssue(BaseModel):
+    id: str
+    bank_name: str = Field(..., alias="bankName")
+    account_id: Optional[str] = Field(None, alias="accountId")
+    type: str
+    severity: Literal['high', 'medium', 'low']
+    title: str
+    description: str
+    recommendation: str
 
 class RecommendedCardOffer(BaseModel):
-    """
-    Схема для рекомендованной карты на странице "Карты".
-    """
-    # Эта схема может быть сложнее и включать в себя детали предложения
-    # и причину рекомендации. Для начала сделаем ее простой.
-    card_name: str
-    bank_name: str
-    potential_saving: float
-    top_category_name: str
+    id: str
+    name: str
+    bank_name: str = Field(..., alias="bankName")
+    brand_color: str = Field(..., alias="brandColor")
     benefits: List[str]
+    is_credit: bool = Field(..., alias="isCredit")
+    cashback_rates: Dict[str, int] = Field(..., alias="cashbackRates")
+
+class BudgetEnvelope(BaseModel):
+    id: str
+    name: str
+    type: Literal['essentials', 'wants', 'savings']
+    allocated_amount: float = Field(..., alias="allocatedAmount")
+    spent_amount: float = Field(..., alias="spentAmount")
+    forecasted_amount: float = Field(..., alias="forecastedAmount")
+    color: str
+
+class BudgetPlan(BaseModel):
+    total_monthly_income: int = Field(..., alias="totalMonthlyIncome")
+    safe_daily_spend: int = Field(..., alias="safeDailySpend")
+    days_remaining_in_month: int = Field(..., alias="daysRemainingInMonth")
+    envelopes: List[BudgetEnvelope]
+    insights: List[str]
+
+class HealthComponent(BaseModel):
+    id: str
+    category: Literal['spending', 'debt', 'savings', 'regularity']
+    label: str
+    score: int
+    max_score: int = Field(..., alias="maxScore")
+    status: Literal['excellent', 'good', 'fair', 'poor']
+    advice: str
+
+class Badge(BaseModel):
+    id: str
+    name: str
+    description: str
+    icon_name: str = Field(..., alias="iconName")
+    unlocked: bool
+
+class Reward(BaseModel):
+    id: str
+    title: str
+    description: str
+    required_score: int = Field(..., alias="requiredScore")
+    is_locked: bool = Field(..., alias="isLocked")
+
+class FinancialHealth(BaseModel):
+    total_score: int = Field(..., alias="totalScore")
+    components: List[HealthComponent]
+    badges: List[Badge]
+    rewards: List[Reward]
 
 
-class CardsPageData(BaseModel):
+# --- Главная агрегирующая модель ---
+
+class FinancialData(BaseModel):
     """
-    Данные для страницы "Карты".
+    Агрегированный объект, содержащий все финансовые данные для пользователя.
+    Полностью соответствует `FinancialData` в `ui/types.ts`.
     """
-    cards: List[Account] = Field(..., description="Список всех карт (дебетовых и кредитных)")
-    recommendation: Optional[RecommendedCardOffer] = Field(None, description="Персональная рекомендация по новой карте")
-
-
-class AssistantResponse(BaseModel):
-    """
-    Ответ от финансового ассистента.
-    """
-    text: str = Field(..., description="Текстовый ответ от AI-ассистента")
-
-
-# Добавим схемы для "умных" сервисов по мере их реализации.
-# Например:
-class SmartDebitingCalculation(BaseModel):
-    """
-    Результат расчета для "Умного списания".
-    """
-    sufficient: bool
-    shortfall: Optional[float] = None
-    plan: Optional[List[Dict]] = None # План может иметь более строгую типизацию
-
+    net_worth: float = Field(..., alias="netWorth")
+    accounts: List[Account]
+    transactions: List[Transaction]
+    goals: List[FinancialGoal]
+    night_safe: NightSafeData = Field(..., alias="nightSafe")
+    smart_pay: SmartPayData = Field(..., alias="smartPay")
+    cashback_categories: List[CashbackCategory] = Field(..., alias="cashbackCategories")
+    special_offers: List[SpecialOffer] = Field(..., alias="specialOffers")
+    exchange_rates: List[ExchangeRate] = Field(..., alias="exchangeRates")
+    subscriptions: List[Subscription]
+    loans: List[Loan]
+    refinancing_offers: List[RefinancingOffer] = Field(..., alias="refinancingOffers")
+    marketplace_subscriptions: List[MarketplaceSubscription] = Field(..., alias="marketplaceSubscriptions")
+    recommended_card_offers: List[RecommendedCardOffer] = Field(..., alias="recommendedCardOffers")
+    trust_issues: List[TrustIssue] = Field(..., alias="trustIssues")
+    budget_plan: BudgetPlan = Field(..., alias="budgetPlan")
+    financial_health: FinancialHealth = Field(..., alias="financialHealth")

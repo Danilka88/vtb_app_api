@@ -89,6 +89,31 @@ class MCPService:
         results = await asyncio.gather(*tasks)
         return results
 
+    async def get_all_transactions(self, accounts: List[Any], user_id: str, consent_id: str) -> List[Any]:
+        """
+        Агрегирует транзакции со всех счетов.
+        В будущем будет делать параллельные запросы к банкам.
+        Пока что является заглушкой.
+        """
+        all_transactions = []
+        for account in accounts:
+            # Здесь будет логика вызова self.get_transactions_for_account
+            # all_transactions.extend(await self.get_transactions_for_account(...))
+            pass
+        return all_transactions
+
+    async def get_all_loans(self, bank_names: List[str], user_id: str, consent_id: str) -> List[Any]:
+        """
+        Агрегирует информацию о кредитах из всех банков. Заглушка.
+        """
+        return []
+
+    async def get_all_subscriptions(self, bank_names: List[str], user_id: str, consent_id: str) -> List[Any]:
+        """
+        Агрегирует информацию о подписках из всех банков. Заглушка.
+        """
+        return []
+
     async def get_transactions_for_account(self, bank_name: str, user_id: str, consent_id: str, account_id: str) -> List[Any]:
         """
         Заглушка для получения транзакций для конкретного счета.
