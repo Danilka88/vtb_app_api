@@ -60,11 +60,17 @@ function App() {
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
   const [userId, setUserId] = useState<string | null>(null);
 
+  const handleLogin = (id: string) => {
+    setUserId(id);
+    // Redirect to 'connect-banks' page immediately after login
+    setActiveView('connect-banks');
+  };
+
   // Authentication Guard
   // If no user is logged in, show the Login Page.
   // In a real app, this would check a persistent session or JWT.
   if (!userId) {
-    return <LoginPage onLogin={setUserId} />;
+    return <LoginPage onLogin={handleLogin} />;
   }
 
   /**
