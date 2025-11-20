@@ -9,6 +9,7 @@ from fastapi import Depends
 
 from app.core.config import settings
 from app.db import crud
+from app.utils.bank_clients import get_bank_client
 from app.auth_manager.exceptions import TokenFetchError, JWKSFetchError, JWTVerificationError
 from app.auth_manager.schemas import TokenResponse
 
@@ -67,24 +68,11 @@ class OAuth2AuthManager(BaseAuthManager):
 
     async def _fetch_and_cache_new_token(self, db: Session, bank_name: str) -> str:
         """
-        Выполняет запрос на получение нового токена и кэширует его.
+        Получает новый токен от банка, используя соответствующий клиент, и кэширует его.
         """
-        auth_url = settings.BANK_AUTH_URL
-        if not auth_url:
-            raise TokenFetchError(bank_name, "URL для аутентификации не настроен в .env (BANK_AUTH_URL)")
-
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    auth_url,
-                    data={
-                        "grant_type": "client_credentials",
-                        "client_id": settings.CLIENT_ID,
-                        "client_secret": settings.CLIENT_SECRET,
-                    }
-                )
-                response.raise_for_status()
-                token_data = TokenResponse(**response.json())
+            bank_client = get_bank_client(bank_name)
+            token_data = await bank_client.get_bank_token()
 
         except httpx.HTTPStatusError as e:
             raise TokenFetchError(bank_name, f"HTTP error {e.response.status_code}: {e.response.text}")

@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import httpx
 
 from app.core.config import settings
+from app.auth_manager.schemas import TokenResponse
 
 from app.banks.services.accounts.base import BaseAccountsService
 from app.banks.services.payments.base import BasePaymentsService
@@ -32,6 +33,14 @@ class BaseBankClient(ABC):
         else:
             print("DEBUG: Инициализация httpx.AsyncClient без mTLS.")
             return httpx.AsyncClient()
+
+    @abstractmethod
+    async def get_bank_token(self) -> TokenResponse:
+        """
+        Абстрактный метод для получения токена доступа от банка.
+        Каждый клиент должен реализовать свою логику запроса к /auth/bank-token.
+        """
+        pass
 
     @abstractmethod
     async def create_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:

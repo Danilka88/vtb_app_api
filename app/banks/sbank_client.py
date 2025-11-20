@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from app.banks.base_client import BaseBankClient
 from app.core.config import settings
+from app.auth_manager.schemas import TokenResponse
 
 
 from app.banks.services.accounts.sbank import SBankAccountsService
@@ -21,6 +22,20 @@ class SBankClient(BaseBankClient):
         self._accounts_service = SBankAccountsService(self)
         self._payments_service = SBankPaymentsService(self)
         self._products_service = SBankProductsService(self)
+
+    async def get_bank_token(self) -> TokenResponse:
+        """
+        Получает токен доступа от SBank, отправляя credentials как query-параметры.
+        """
+        response = await self._async_client.post(
+            f"{self.api_url}/auth/bank-token",
+            params={
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+            }
+        )
+        response.raise_for_status()
+        return TokenResponse(**response.json())
 
     async def create_consent(self, access_token: str, permissions: list[str], user_id: str) -> str:
         """
