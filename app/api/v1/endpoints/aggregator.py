@@ -5,6 +5,7 @@ API-роутер для агрегации данных из различных 
 используя `ui_connector` сервис для сбора и подготовки данных.
 """
 from fastapi import APIRouter, Depends, Body
+from pydantic import BaseModel
 from typing import Any
 
 from app.ui_connector.services import UIService, get_ui_service
